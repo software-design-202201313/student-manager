@@ -53,7 +53,7 @@ npm test
 
 ## 문서
 
-- [PRD](docs/PRD.md) — 제품 요구사항
+- [PRD](docs/prd.md) — 제품 요구사항
 - [설계 명세서](docs/design-spec.md) — 상세 기술 설계
 - [구현 계획](docs/superpowers/plans/2026-03-20-student-manager-full-implementation.md)
 

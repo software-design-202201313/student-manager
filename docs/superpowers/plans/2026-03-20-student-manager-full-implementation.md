@@ -9,7 +9,31 @@
 **Tech Stack:** Python 3.11, FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic, pytest / React 18, TypeScript, Vite, Tailwind CSS, Zustand, TanStack Query, Recharts
 
 **Spec:** `docs/design-spec.md` (v2.0 확정)
-**PRD:** `docs/PRD.md` (v2.0 확정)
+**PRD:** `docs/prd.md` (v2.0 확정)
+
+## Implementation Status — 2026-03-22
+
+- [x] Backend: project scaffold, config, DB base, health route
+- [x] Backend: all 14 models + Alembic initial migration and seed
+- [x] Backend: utils (bcrypt/JWT, 9-grade calc) + tests
+- [x] Backend: auth dependencies, auth service + router (login/refresh/logout/me)
+- [x] Backend: semesters, classes, subjects CRUD
+- [x] Backend: users (student/parent create, list, deactivate)
+- [x] Backend: grades CRUD + summary + bulk; security scoped to teacher-owned students
+- [x] Backend: students detail/update, attendance, special notes
+- [x] Backend: feedbacks CRUD (owner/visibility rules)
+- [x] Backend: counselings CRUD + sharing + filters
+- [x] Backend: notifications (list/mark-read/read-all, preferences) + side-effects
+- [x] Backend: CSV imports (students, grades)
+- [x] Security: rate limit on `/auth/login` (5/min), JSON 429 handler
+- [ ] Security: additional cross-school isolation tests (nice-to-have)
+- [x] Frontend: Vite+React+TS+Tailwind scaffold, axios client with refresh interceptor
+- [x] Frontend: Zustand auth store, `ProtectedRoute`, layout (`Sidebar`, `Header`)
+- [x] Frontend: `LoginPage`
+- [ ] Frontend: API modules/hooks for domain features
+- [ ] Frontend: pages — Dashboard, Student List/Detail, Grades (autosave grid + radar), Feedback, Counseling, Notifications
+- [ ] Frontend: export (Excel/PDF), responsive polish
+- [ ] QA: full integration test suite and coverage target ≥ 80%
 
 ---
 
