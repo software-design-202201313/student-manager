@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.routers import auth
+from app.routers import semesters
 
 
 class AppException(Exception):
@@ -41,3 +42,4 @@ async def health_check():
 
 # Routers
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(semesters.router, prefix="/api/v1")
