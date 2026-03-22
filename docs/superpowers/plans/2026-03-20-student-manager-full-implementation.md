@@ -11,7 +11,7 @@
 **Spec:** `docs/design-spec.md` (v2.0 확정)
 **PRD:** `docs/prd.md` (v2.0 확정)
 
-## Implementation Status — 2026-03-22
+## Implementation Status — 2026-03-23
 
 - [x] Backend: project scaffold, config, DB base, health route
 - [x] Backend: all 14 models + Alembic initial migration and seed
@@ -30,10 +30,16 @@
 - [x] Frontend: Vite+React+TS+Tailwind scaffold, axios client with refresh interceptor
 - [x] Frontend: Zustand auth store, `ProtectedRoute`, layout (`Sidebar`, `Header`)
 - [x] Frontend: `LoginPage`
-- [ ] Frontend: API modules/hooks for domain features
-- [ ] Frontend: pages — Dashboard, Student List/Detail, Grades (autosave grid + radar), Feedback, Counseling, Notifications
+- [x] Frontend: API modules/hooks — Semesters, Classes/Subjects, Users/Students, Grades, Notifications (Feedback/Counseling pending)
+- [x] Frontend: pages — Student List, Student Detail, Grades (autosave grid), Notifications
+- [ ] Frontend: pages — Dashboard, Feedback, Counseling, Grades radar chart
 - [ ] Frontend: export (Excel/PDF), responsive polish
-- [ ] QA: full integration test suite and coverage target ≥ 80%
+- [x] Tests: backend test suite passing locally (27/27 on Python 3.12)
+- [ ] QA: integration test suite and coverage target ≥ 80%
+
+Notes
+- Runtime: recommend Python 3.11/3.12. `bcrypt` pinned (4.2.0) for `passlib` compatibility.
+- Security: ownership checks enforced across services; cross-school isolation tests to be added.
 
 ---
 
