@@ -41,16 +41,14 @@ async def mark_notification_read(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.main import AppException
+
     try:
         n = await mark_read(db, notification_id=uuid.UUID(notification_id), recipient_id=current_user.id)
     except PermissionError:
-        from fastapi import HTTPException, status
-
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="FORBIDDEN")
+        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
     except ValueError:
-        from fastapi import HTTPException, status
-
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NOT_FOUND")
+        raise AppException(404, "Notification not found", "NOT_FOUND")
     return NotificationResponse(
         id=str(n.id), type=n.type, message=n.message, is_read=n.is_read, created_at=n.created_at
     )
@@ -96,4 +94,3 @@ async def upsert_my_notification_preferences(
         "feedback_created": pref.feedback_created,
         "counseling_updated": pref.counseling_updated,
     }
-
