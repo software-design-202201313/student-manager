@@ -41,7 +41,7 @@ async def mark_notification_read(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.main import AppException
+    from app.errors import AppException
 
     try:
         n = await mark_read(db, notification_id=uuid.UUID(notification_id), recipient_id=current_user.id)

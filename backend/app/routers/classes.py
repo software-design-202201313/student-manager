@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, require_role
 from app.dependencies.db import get_db
-from app.main import AppException
+from app.errors import AppException
 from app.models.class_ import Class
 from app.models.grade import Grade
 from app.models.subject import Subject
@@ -120,4 +120,3 @@ async def delete_subject(
 
     await db.delete(subj)
     await db.commit()
-

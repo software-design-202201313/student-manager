@@ -4,7 +4,7 @@ from typing import List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import AppException
+from app.errors import AppException
 from app.models.class_ import Class
 from app.models.feedback import Feedback
 from app.models.student import Student
@@ -91,4 +91,3 @@ async def list_feedbacks_for_teacher(db: AsyncSession, *, teacher_id: uuid.UUID,
         stmt = stmt.where(Feedback.student_id == student_id)
     result = await db.execute(stmt.order_by(Feedback.created_at.desc()))
     return result.scalars().all()
-

@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user
 from app.dependencies.db import get_db
-from app.main import AppException, limiter
+from app.errors import AppException
+from app.ratelimit import limiter
 from app.models.user import User
 from app.schemas.auth import LoginRequest, MeResponse, RefreshResponse, TokenResponse
 from app.services.auth import authenticate_user, create_tokens

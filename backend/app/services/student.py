@@ -6,7 +6,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import AppException
+from app.errors import AppException
 from app.models.attendance import Attendance
 from app.models.class_ import Class
 from app.models.special_note import SpecialNote
@@ -158,4 +158,3 @@ async def list_special_notes(db: AsyncSession, *, student_id: uuid.UUID, teacher
     await _teacher_owns_student(db, student_id=student_id, teacher_id=teacher_id)
     result = await db.execute(select(SpecialNote).where(SpecialNote.student_id == student_id).order_by(SpecialNote.created_at.desc()))
     return result.scalars().all()
-

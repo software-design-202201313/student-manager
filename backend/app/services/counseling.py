@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import AppException
+from app.errors import AppException
 from app.models.class_ import Class
 from app.models.counseling import Counseling
 from app.models.student import Student
@@ -99,4 +99,3 @@ async def list_counselings(
         .order_by(Counseling.date.desc())
     )
     return result.scalars().all()
-

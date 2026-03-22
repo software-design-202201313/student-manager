@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import require_role
 from app.dependencies.db import get_db
-from app.main import AppException
+from app.errors import AppException
 from app.models.semester import Semester
 from app.schemas.semester import SemesterCreate, SemesterResponse
 
@@ -37,4 +37,3 @@ async def list_semesters(
     result = await db.execute(select(Semester).order_by(Semester.year.desc(), Semester.term.desc()))
     items = result.scalars().all()
     return [SemesterResponse(id=str(s.id), year=s.year, term=s.term) for s in items]
-

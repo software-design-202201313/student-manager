@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import AppException
+from app.errors import AppException
 from app.services.grade import create_grade
 from app.services.user import create_student_account
 
@@ -98,4 +98,3 @@ async def import_grades_csv(
             errors.append({"row": idx, "error": str(e)})
 
     return ImportResult(created, skipped, errors)
-

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import AppException
+from app.errors import AppException
 from app.models.grade import Grade
 from app.models.student import Student
 from app.models.class_ import Class

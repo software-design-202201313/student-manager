@@ -5,7 +5,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import AppException
+from app.errors import AppException
 from app.models.class_ import Class
 from app.models.parent_student import ParentStudent
 from app.models.student import Student
