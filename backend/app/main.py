@@ -10,6 +10,9 @@ from app.routers import auth
 from app.routers import semesters
 from app.routers import classes
 from app.routers import users
+from app.routers import feedbacks
+from app.routers import counselings
+from app.routers import notifications
 
 
 class AppException(Exception):
@@ -59,3 +62,6 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(semesters.router, prefix="/api/v1")
 app.include_router(classes.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(feedbacks.router, prefix="/api/v1")
+app.include_router(counselings.router, prefix="/api/v1")
+app.include_router(notifications.router, prefix="/api/v1")
