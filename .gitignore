@@ -1,1 +1,16 @@
-.env
+.DS_Store
+__pycache__/
+.pytest_cache/
+
+# Dev environment
+.omc/
+.omx/
+
+# Python
+backend/.venv/
+backend/test.db
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/.env
