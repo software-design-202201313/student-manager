@@ -11,7 +11,7 @@ const getAuthStore = async () => await import('../stores/authStore');
 apiClient.interceptors.request.use(async (config) => {
   const { useAuthStore } = await getAuthStore();
   const token = useAuthStore.getState().accessToken;
-  if (token) config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -28,7 +28,7 @@ apiClient.interceptors.response.use(
         );
         const { useAuthStore } = await getAuthStore();
         useAuthStore.getState().setAccessToken(data.access_token);
-        error.config.headers.Authorization = `Bearer ${data.access_token}`;
+        error.config.headers['Authorization'] = `Bearer ${data.access_token}`;
         return apiClient(error.config);
       } catch {
         const { useAuthStore } = await getAuthStore();
