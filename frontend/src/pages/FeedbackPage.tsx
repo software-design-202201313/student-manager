@@ -40,6 +40,7 @@ export default function FeedbackPage() {
   const [form, setForm] = useState<FeedbackFormState>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -50,12 +51,17 @@ export default function FeedbackPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.student_id.trim() || !form.content.trim()) return;
-    if (editingId) {
-      await updateFb.mutateAsync({ id: editingId, body: form });
-    } else {
-      await createFb.mutateAsync(form);
+    setError(null);
+    try {
+      if (editingId) {
+        await updateFb.mutateAsync({ id: editingId, body: form });
+      } else {
+        await createFb.mutateAsync(form);
+      }
+      resetForm();
+    } catch {
+      setError('저장에 실패했습니다. 다시 시도해주세요.');
     }
-    resetForm();
   };
 
   const handleEdit = (fb: Feedback) => {
@@ -144,6 +150,7 @@ export default function FeedbackPage() {
               학부모 공개
             </label>
           </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" className="px-3 py-1 bg-indigo-600 text-white rounded text-sm">
               {editingId ? '수정' : '저장'}

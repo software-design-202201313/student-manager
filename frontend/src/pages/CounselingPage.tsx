@@ -30,6 +30,7 @@ export default function CounselingPage() {
   const [form, setForm] = useState<CounselingFormState>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -40,12 +41,17 @@ export default function CounselingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.student_id.trim() || !form.content.trim()) return;
-    if (editingId) {
-      await updateCs.mutateAsync({ id: editingId, body: form });
-    } else {
-      await createCs.mutateAsync(form);
+    setError(null);
+    try {
+      if (editingId) {
+        await updateCs.mutateAsync({ id: editingId, body: form });
+      } else {
+        await createCs.mutateAsync(form);
+      }
+      resetForm();
+    } catch {
+      setError('저장에 실패했습니다. 다시 시도해주세요.');
     }
-    resetForm();
   };
 
   const handleEdit = (cs: Counseling) => {
@@ -121,6 +127,7 @@ export default function CounselingPage() {
             />
             교사 간 공유
           </label>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" className="px-3 py-1 bg-indigo-600 text-white rounded text-sm">
               {editingId ? '수정' : '저장'}

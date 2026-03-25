@@ -15,7 +15,8 @@ export function useCreateCounseling(studentId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createCounseling,
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(studentId) }),
+    // Invalidate all counseling queries so every consumer stays fresh
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['counselings'] }),
   });
 }
 
@@ -24,6 +25,6 @@ export function useUpdateCounseling(studentId?: string) {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Parameters<typeof updateCounseling>[1] }) =>
       updateCounseling(id, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(studentId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['counselings'] }),
   });
 }

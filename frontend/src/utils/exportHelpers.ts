@@ -2,6 +2,11 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import type { GradeItem, Subject } from '../types';
 
+// Sanitize names used in filenames to prevent path traversal / special char issues
+function safeName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9가-힣_-]/g, '_');
+}
+
 export function exportGradesToExcel(
   subjects: Subject[],
   grades: GradeItem[],
@@ -19,7 +24,7 @@ export function exportGradesToExcel(
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '성적');
-  XLSX.writeFile(wb, `${studentName}_성적.xlsx`);
+  XLSX.writeFile(wb, `${safeName(studentName)}_성적.xlsx`);
 }
 
 export function exportGradesToPDF(
@@ -39,5 +44,5 @@ export function exportGradesToPDF(
     doc.text(`${s.name}: ${g?.score ?? '-'} (등급 ${g?.grade_rank ?? '-'})`, 14, y);
     y += 8;
   });
-  doc.save(`${studentName}_성적.pdf`);
+  doc.save(`${safeName(studentName)}_성적.pdf`);
 }

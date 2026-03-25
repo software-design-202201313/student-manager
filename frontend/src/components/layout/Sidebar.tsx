@@ -18,7 +18,7 @@ export default function Sidebar() {
             key={to}
             to={to}
             end={end}
-            className={({ isActive }: { isActive: boolean }) =>
+            className={({ isActive }) =>
               `px-3 py-2 rounded text-sm ${isActive ? 'bg-indigo-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-200'}`
             }
           >
