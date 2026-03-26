@@ -7,6 +7,7 @@ import { useGrades, useUpsertGrade } from '../hooks/useGrades';
 import GradeTable from '../components/grades/GradeTable';
 import GradeRadarChart from '../components/grades/RadarChart';
 import type { Semester, Subject } from '../types';
+import { exportGradesToExcel, exportGradesToPDF } from '../utils/exportHelpers';
 
 type Tab = 'table' | 'chart';
 
@@ -17,6 +18,7 @@ export default function GradesPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [tab, setTab] = useState<Tab>('table');
+  const [studentName, setStudentName] = useState<string>('');
   const { data: grades } = useGrades(studentId || '', semesterId || undefined);
   const upsert = useUpsertGrade(studentId || '', semesterId || undefined);
 
@@ -29,6 +31,7 @@ export default function GradesPage() {
         setSemesters(sems);
         const sid = sems[0]?.id || '';
         setSemesterId((prev) => prev || sid);
+        setStudentName(s.name);
         const subjs = await listSubjects(s.class_id);
         setSubjects(subjs);
       } finally {
@@ -55,17 +58,33 @@ export default function GradesPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">성적 관리</h1>
 
-      <div className="flex gap-2 items-center">
-        <label className="text-sm text-gray-600">학기</label>
-        <select
-          className="border p-1"
-          value={semesterId}
-          onChange={(e) => setSemesterId(e.target.value)}
-        >
-          {semesters.map((sm) => (
-            <option key={sm.id} value={sm.id}>{`${sm.year}년 ${sm.term}학기`}</option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-2 items-center">
+          <label className="text-sm text-gray-600">학기</label>
+          <select
+            className="border p-1"
+            value={semesterId}
+            onChange={(e) => setSemesterId(e.target.value)}
+          >
+            {semesters.map((sm) => (
+              <option key={sm.id} value={sm.id}>{`${sm.year}년 ${sm.term}학기`}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="px-3 py-1 rounded text-sm border"
+            onClick={() => exportGradesToExcel(subjects, grades || [], studentName || '학생')}
+          >
+            Excel 내보내기
+          </button>
+          <button
+            className="px-3 py-1 rounded text-sm border"
+            onClick={() => exportGradesToPDF(subjects, grades || [], studentName || '학생')}
+          >
+            PDF 내보내기
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2">

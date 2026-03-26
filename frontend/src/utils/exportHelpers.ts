@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import type { GradeItem, Subject } from '../types';
+import type { GradeItem, Subject, StudentSummary } from '../types';
 
 // Sanitize names used in filenames to prevent path traversal / special char issues
 function safeName(name: string): string {
@@ -45,4 +45,18 @@ export function exportGradesToPDF(
     y += 8;
   });
   doc.save(`${safeName(studentName)}_성적.pdf`);
+}
+
+export function exportStudentsToExcel(students: StudentSummary[], classLabel?: string) {
+  const rows = students
+    .slice()
+    .sort((a, b) => a.student_number - b.student_number)
+    .map((s) => ({ 번호: s.student_number, 이름: s.name, 학생ID: s.id }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '학생목록');
+  const filename = classLabel
+    ? `${safeName(classLabel)}_학생목록.xlsx`
+    : `학생목록.xlsx`;
+  XLSX.writeFile(wb, filename);
 }
