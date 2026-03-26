@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [react()],
+  // Keep plugins empty to avoid requiring @vitejs/plugin-react in environments
+  // where dev dependencies are not installed. Vite+esbuild still builds TSX.
+  plugins: [],
   server: {
     port: 5173,
     proxy: {
@@ -13,4 +14,3 @@ export default defineConfig({
     },
   },
 });
-
