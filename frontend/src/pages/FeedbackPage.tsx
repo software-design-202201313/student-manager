@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   useCreateFeedback,
   useDeleteFeedback,
   useFeedbacks,
   useUpdateFeedback,
 } from '../hooks/useFeedbacks';
+import StudentSelector from '../components/ui/StudentSelector';
 import type { Feedback } from '../types';
 
 const CATEGORIES: Feedback['category'][] = ['grade', 'behavior', 'attendance', 'attitude'];
@@ -40,7 +42,6 @@ export default function FeedbackPage() {
   const [form, setForm] = useState<FeedbackFormState>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -50,17 +51,25 @@ export default function FeedbackPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.student_id.trim() || !form.content.trim()) return;
-    setError(null);
+    if (!form.student_id) {
+      toast.error('학생을 선택해주세요.');
+      return;
+    }
+    if (!form.content.trim()) {
+      toast.error('내용을 입력해주세요.');
+      return;
+    }
     try {
       if (editingId) {
         await updateFb.mutateAsync({ id: editingId, body: form });
+        toast.success('피드백이 수정되었습니다.');
       } else {
         await createFb.mutateAsync(form);
+        toast.success('피드백이 저장되었습니다.');
       }
       resetForm();
     } catch {
-      setError('저장에 실패했습니다. 다시 시도해주세요.');
+      toast.error('저장에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -97,12 +106,10 @@ export default function FeedbackPage() {
         <form onSubmit={handleSubmit} className="border rounded p-4 space-y-3 bg-gray-50">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm text-gray-600">학생 ID</label>
-              <input
-                className="border w-full p-1 text-sm"
+              <label className="text-sm text-gray-600">학생</label>
+              <StudentSelector
                 value={form.student_id}
-                onChange={(e) => setForm({ ...form, student_id: e.target.value })}
-                placeholder="학생 UUID"
+                onChange={(id) => setForm({ ...form, student_id: id })}
                 required
               />
             </div>
@@ -150,7 +157,6 @@ export default function FeedbackPage() {
               학부모 공개
             </label>
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" className="px-3 py-1 bg-indigo-600 text-white rounded text-sm">
               {editingId ? '수정' : '저장'}
