@@ -1,6 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
+import RootIndex from './pages/RootIndex';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
 
@@ -14,7 +17,10 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Toaster position="top-right" />
+      <Routes>
+      <Route path="/" element={<RootIndex /> } />
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/*"
@@ -23,7 +29,7 @@ function App() {
             <AppLayout>
               <Suspense fallback={<div className="p-4">불러오는 중...</div>}>
                 <Routes>
-                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/students" element={<StudentListPage />} />
                   <Route path="/students/:studentId" element={<StudentDetailPage />} />
                   <Route path="/grades/:studentId" element={<GradesPage />} />
@@ -37,6 +43,7 @@ function App() {
         }
       />
     </Routes>
+    </>
   );
 }
 

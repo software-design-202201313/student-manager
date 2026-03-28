@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, getMe } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
@@ -10,6 +10,14 @@ export default function LoginPage() {
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const setUser = useAuthStore((s) => s.setUser);
   const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+  const reason = useMemo(() => params.get('reason'), [params.toString()]);
+
+  // In dev, ask password managers to ignore to avoid buggy overlays
+  const pmIgnore = import.meta.env.MODE !== 'production';
+  const pmAttrs = pmIgnore
+    ? ({ 'data-bwignore': 'true', 'data-1p-ignore': 'true', 'data-lpignore': 'true' } as const)
+    : ({} as const);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +27,7 @@ export default function LoginPage() {
       setAccessToken(tok.access_token);
       const me = await getMe();
       setUser(me);
-      navigate('/');
+      navigate('/dashboard');
     } catch (e: any) {
       setError(e.response?.data?.detail || '로그인 실패');
     }
@@ -27,14 +35,36 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <form onSubmit={onSubmit} className="bg-white p-6 rounded shadow w-80 space-y-3">
+      <form onSubmit={onSubmit} autoComplete="on" {...pmAttrs} className="bg-white p-6 rounded shadow w-80 space-y-3">
         <h1 className="text-xl font-semibold">Student Manager</h1>
+        {reason === 'expired' && (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+            세션이 만료되었습니다. 다시 로그인해주세요.
+          </div>
+        )}
         {error && <div className="text-red-600 text-sm">{error}</div>}
-        <input className="border p-2 w-full" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input className="border p-2 w-full" placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input
+          className="border p-2 w-full"
+          placeholder="Email"
+          type="email"
+          name="email"
+          autoComplete="username email"
+          {...pmAttrs}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          className="border p-2 w-full"
+          placeholder="Password"
+          type="password"
+          name="password"
+          autoComplete="current-password"
+          {...pmAttrs}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         <button className="bg-blue-600 text-white p-2 rounded w-full" type="submit">로그인</button>
       </form>
     </div>
   );
 }
-

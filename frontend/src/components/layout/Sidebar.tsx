@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { to: '/', label: '대시보드', end: true },
+  { to: '/dashboard', label: '대시보드', end: true },
   { to: '/students', label: '학생 목록' },
   { to: '/feedbacks', label: '피드백' },
   { to: '/counselings', label: '상담 기록' },
