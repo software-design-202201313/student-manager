@@ -39,6 +39,9 @@ async def get_student_endpoint(
         name=user.name,
         student_number=student.student_number,
         birth_date=student.birth_date,
+        gender=student.gender,
+        phone=student.phone,
+        address=student.address,
     )
 
 
@@ -56,6 +59,9 @@ async def update_student_endpoint(
         name=body.name,
         student_number=body.student_number,
         birth_date=body.birth_date,
+        gender=body.gender,
+        phone=body.phone,
+        address=body.address,
     )
     return StudentDetail(
         id=str(student.id),
@@ -64,6 +70,9 @@ async def update_student_endpoint(
         name=user.name,
         student_number=student.student_number,
         birth_date=student.birth_date,
+        gender=student.gender,
+        phone=student.phone,
+        address=student.address,
     )
 
 
@@ -173,4 +182,3 @@ async def list_special_notes_endpoint(
         )
         for note in rows
     ]
-

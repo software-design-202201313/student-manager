@@ -43,6 +43,9 @@ async def update_student(
     name: str | None,
     student_number: int | None,
     birth_date: date | None,
+    gender: str | None = None,
+    phone: str | None = None,
+    address: str | None = None,
 ) -> tuple[Student, User]:
     student, user, _ = await _teacher_owns_student(db, student_id=student_id, teacher_id=teacher_id)
     if name is not None:
@@ -51,6 +54,12 @@ async def update_student(
         student.student_number = student_number
     if birth_date is not None:
         student.birth_date = birth_date
+    if gender is not None:
+        student.gender = gender
+    if phone is not None:
+        student.phone = phone
+    if address is not None:
+        student.address = address
     await db.commit()
     await db.refresh(student)
     await db.refresh(user)
@@ -158,3 +167,58 @@ async def list_special_notes(db: AsyncSession, *, student_id: uuid.UUID, teacher
     await _teacher_owns_student(db, student_id=student_id, teacher_id=teacher_id)
     result = await db.execute(select(SpecialNote).where(SpecialNote.student_id == student_id).order_by(SpecialNote.created_at.desc()))
     return result.scalars().all()
+
+
+async def create_student(
+    db: AsyncSession,
+    *,
+    class_id: uuid.UUID,
+    teacher_id: uuid.UUID,
+    school_id: uuid.UUID,
+    name: str,
+    student_number: int,
+    birth_date: date | None = None,
+    gender: str | None = None,
+    phone: str | None = None,
+    address: str | None = None,
+) -> tuple[Student, User]:
+    # Validate class ownership and school scope
+    result = await db.execute(select(Class).where(Class.id == class_id))
+    cls = result.scalar_one_or_none()
+    if cls is None:
+        raise AppException(404, "Class not found", "CLASS_NOT_FOUND")
+    if cls.teacher_id != teacher_id or cls.school_id != school_id:
+        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+
+    # Create a placeholder user account for student
+    from app.utils.security import hash_password
+
+    email = f"student-{uuid.uuid4().hex[:12]}@placeholder.local"
+    user = User(
+        school_id=school_id,
+        email=email,
+        hashed_password=hash_password("placeholder"),
+        role="student",
+        name=name,
+    )
+    db.add(user)
+    await db.flush()
+
+    student = Student(
+        user_id=user.id,
+        class_id=class_id,
+        student_number=student_number,
+        birth_date=birth_date,
+        gender=gender,
+        phone=phone,
+        address=address,
+    )
+    db.add(student)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise AppException(409, "해당 번호의 학생이 이미 존재합니다.", "STUDENT_DUPLICATE_NUMBER")
+    await db.refresh(student)
+    await db.refresh(user)
+    return student, user
