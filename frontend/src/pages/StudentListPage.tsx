@@ -10,21 +10,22 @@ import { exportStudentsToExcel } from '../utils/exportHelpers';
 export default function StudentListPage() {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [classId, setClassId] = useState<string | undefined>(undefined);
-  const { data: students, isLoading } = useStudents(classId);
+  // Default to first class when available
+  const effectiveClassId = useMemo(() => classId ?? classes[0]?.id, [classId, classes]);
+  const { data: students, isLoading } = useStudents(effectiveClassId);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const currentClassLabel = useMemo(() => {
-    const c = classes.find((x) => x.id === classId);
+    const c = classes.find((x) => x.id === effectiveClassId);
     return c ? `${c.year}학년도 ${c.grade}학년 ${c.name}` : undefined;
-  }, [classes, classId]);
+  }, [classes, effectiveClassId]);
 
   useEffect(() => {
     (async () => {
       try {
         const cls = await listClasses();
         setClasses(cls);
-        if (cls.length > 0 && !classId) setClassId(cls[0].id);
       } catch (e) {
         console.error(e);
       }
@@ -37,7 +38,7 @@ export default function StudentListPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 items-center">
           <label className="text-sm text-gray-600">학급 선택</label>
-          <select className="border p-1" value={classId} onChange={(e) => setClassId(e.target.value)}>
+          <select className="border p-1" value={effectiveClassId || ''} onChange={(e) => setClassId(e.target.value)}>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>{`${c.year}학년도 ${c.grade}학년 ${c.name}`}</option>
             ))}
@@ -47,14 +48,14 @@ export default function StudentListPage() {
           <button
             className="px-3 py-1 rounded text-sm border"
             onClick={() => setShowCreateForm(true)}
-            disabled={!classId}
+            disabled={!effectiveClassId}
           >
             학생 추가
           </button>
           <button
             className="px-3 py-1 rounded text-sm border"
             onClick={() => setShowUploadModal(true)}
-            disabled={!classId}
+            disabled={!effectiveClassId}
           >
             엑셀로 등록
           </button>
@@ -76,11 +77,11 @@ export default function StudentListPage() {
       ) : (
         <div>학생이 없습니다.</div>
       )}
-      {showUploadModal && classId && (
-        <ExcelUploadModal classId={classId} onClose={() => setShowUploadModal(false)} />
+      {showUploadModal && effectiveClassId && (
+        <ExcelUploadModal classId={effectiveClassId} onClose={() => setShowUploadModal(false)} />
       )}
-      {showCreateForm && classId && (
-        <StudentCreateForm classId={classId} onClose={() => setShowCreateForm(false)} />
+      {showCreateForm && effectiveClassId && (
+        <StudentCreateForm classId={effectiveClassId} onClose={() => setShowCreateForm(false)} />
       )}
     </div>
   );
