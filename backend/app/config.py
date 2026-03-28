@@ -6,12 +6,14 @@ class Settings(BaseSettings):
     test_database_url: str = "sqlite+aiosqlite:///./test.db"
     secret_key: str = "change-me-in-production"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 120
     refresh_token_expire_days: int = 7
     allowed_origins: list[str] = ["http://localhost:5173"]
+    # Cookie settings for refresh token
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"  # one of: "lax", "strict", "none"
 
     model_config = {"env_file": ".env"}
 
 
 settings = Settings()
-
