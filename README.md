@@ -78,3 +78,25 @@ npm run mcp:chrome:beta      # Beta 채널 Chrome 사용
 참고:
 - autoConnect를 사용하려면 Chrome에서 `chrome://inspect/#remote-debugging` 페이지에서 Remote Debugging을 활성화해야 합니다.
 - 샌드박스나 CI 환경에서는 브라우저 실행이 제한될 수 있습니다. 로컬에서 실행하세요.
+
+### MCP로 성적 관리 E2E 실행
+
+사전 준비:
+- Docker Compose로 백엔드/프런트엔드 실행: `docker compose up --build`
+- 첫 실행 후 기본 계정 `teacher@example.com` / `password123`
+
+실행:
+```bash
+# 1) MCP 서버는 스크립트가 자동으로 시작(headless)합니다.
+# 2) E2E 스크립트 실행 (Chrome을 자동 제어)
+node scripts/mcp-grade-e2e.mjs
+
+# 완료 후 스크린샷 아티팩트:
+#   frontend/e2e-artifacts/grades-chart.png
+```
+
+문제 해결:
+- 로컬에서 Chrome 실행이 제한된 경우:
+  - `cd frontend && npm run mcp:chrome:auto` 로 MCP 서버를 수동으로 띄운 뒤,
+  - 다른 터미널에서 `node scripts/mcp-grade-e2e.mjs` 실행
+- 포트/네트워크 이슈 시 `http://localhost:5173` 접근이 가능한지 확인
