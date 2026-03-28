@@ -29,7 +29,8 @@ export async function uploadGradesXlsx(classId: string, semesterId: string, file
 }
 
 export function getStudentTemplateUrl() {
-  return `${apiClient.defaults.baseURL}/import/students/template`;
+  const u = new URL(`${apiClient.defaults.baseURL}/import/students/template`, window.location.origin);
+  return u.pathname + u.search;
 }
 
 export function getGradeTemplateUrl(classId: string) {
@@ -37,4 +38,3 @@ export function getGradeTemplateUrl(classId: string) {
   u.searchParams.set('class_id', classId);
   return u.pathname + u.search; // keep relative path under same origin
 }
-

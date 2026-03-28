@@ -1,7 +1,19 @@
 import axios from 'axios';
 
+// Normalize API base URL to always be absolute-or-rooted and without trailing slash
+function normalizeBaseURL(input: string | undefined) {
+  const raw = input && input.trim().length > 0 ? input.trim() : '/api/v1';
+  // If it's an absolute URL (http/https), leave scheme as-is but strip trailing slash
+  if (/^https?:\/\//i.test(raw)) {
+    return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+  }
+  // Ensure leading slash for relative roots like 'api/v1'
+  const withLeading = raw.startsWith('/') ? raw : `/${raw}`;
+  return withLeading.endsWith('/') ? withLeading.slice(0, -1) : withLeading;
+}
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || '/api/v1',
+  baseURL: normalizeBaseURL(import.meta.env.VITE_API_BASE),
   withCredentials: true,
 });
 
@@ -41,4 +53,3 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-
