@@ -190,6 +190,13 @@ async def create_student(
     if cls.teacher_id != teacher_id or cls.school_id != school_id:
         raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
 
+    # Prevent duplicate student_number within the class
+    exists = await db.execute(
+        select(Student).where(Student.class_id == class_id, Student.student_number == student_number)
+    )
+    if exists.scalar_one_or_none() is not None:
+        raise AppException(409, "해당 번호의 학생이 이미 존재합니다.", "STUDENT_DUPLICATE_NUMBER")
+
     # Create a placeholder user account for student
     from app.utils.security import hash_password
 
@@ -214,11 +221,7 @@ async def create_student(
         address=address,
     )
     db.add(student)
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise AppException(409, "해당 번호의 학생이 이미 존재합니다.", "STUDENT_DUPLICATE_NUMBER")
+    await db.commit()
     await db.refresh(student)
     await db.refresh(user)
     return student, user

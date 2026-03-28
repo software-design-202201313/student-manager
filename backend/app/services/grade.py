@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from typing import List
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -111,3 +111,48 @@ async def list_grades(
         stmt = stmt.where(Grade.semester_id == semester_id)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def get_grade_summary(
+    db: AsyncSession,
+    *,
+    student_id: uuid.UUID,
+    semester_id: uuid.UUID | None = None,
+    teacher_id: uuid.UUID,
+):
+    # Verify teacher owns the student's class
+    result = await db.execute(
+        select(Student, Class).join(Class, Student.class_id == Class.id).where(Student.id == student_id)
+    )
+    row = result.first()
+    if row is None:
+        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
+    _student, cls = row
+    if cls.teacher_id != teacher_id:
+        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+
+    # Aggregate (ignore NULL scores)
+    agg_stmt = select(
+        func.sum(Grade.score),
+        func.avg(Grade.score),
+        func.count(Grade.id),
+    ).where(Grade.student_id == student_id)
+    if semester_id is not None:
+        agg_stmt = agg_stmt.where(Grade.semester_id == semester_id)
+    agg_stmt = agg_stmt.where(Grade.score.isnot(None))
+    agg_result = await db.execute(agg_stmt)
+    total, average, count = agg_result.one_or_none() or (None, None, 0)
+
+    # List grades for the same scope
+    stmt = select(Grade).where(Grade.student_id == student_id)
+    if semester_id is not None:
+        stmt = stmt.where(Grade.semester_id == semester_id)
+    rows_result = await db.execute(stmt)
+    grades = rows_result.scalars().all()
+
+    return {
+        "total": total,
+        "average": average,
+        "count": int(count or 0),
+        "grades": grades,
+    }

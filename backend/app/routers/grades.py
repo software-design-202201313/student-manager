@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies.auth import require_role
 from app.dependencies.db import get_db
 from app.models.user import User
-from app.schemas.grade import GradeCreate, GradeResponse
-from app.services.grade import create_grade, list_grades, update_grade
+from app.schemas.grade import GradeCreate, GradeResponse, GradeSummaryResponse
+from app.services.grade import create_grade, list_grades, update_grade, get_grade_summary
 
 router = APIRouter(prefix="/grades", tags=["grades"]) 
 
@@ -83,3 +83,31 @@ async def list_grades_endpoint(
         )
         for g in rows
     ]
+
+
+@router.get("/{student_id}/summary", response_model=GradeSummaryResponse)
+async def get_grade_summary_endpoint(
+    student_id: str,
+    semester_id: Optional[str] = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("teacher")),
+):
+    sid = uuid.UUID(student_id)
+    sem = uuid.UUID(semester_id) if semester_id else None
+    result = await get_grade_summary(db, student_id=sid, semester_id=sem, teacher_id=current_user.id)
+    # Adapt to schema
+    grades = [
+        GradeResponse(
+            id=str(g.id),
+            student_id=str(g.student_id),
+            subject_id=str(g.subject_id),
+            semester_id=str(g.semester_id),
+            score=g.score,
+            grade_rank=g.grade_rank,
+        )
+        for g in result["grades"]
+    ]
+
+    total = float(result["total"]) if result["total"] is not None else None
+    average = float(result["average"]) if result["average"] is not None else None
+    return GradeSummaryResponse(total_score=total, average_score=average, subject_count=result["count"], grades=grades)

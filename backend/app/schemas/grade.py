@@ -18,3 +18,9 @@ class GradeResponse(BaseModel):
     score: Decimal | None
     grade_rank: int | None
 
+
+class GradeSummaryResponse(BaseModel):
+    total_score: float | None
+    average_score: float | None
+    subject_count: int
+    grades: list[GradeResponse]
