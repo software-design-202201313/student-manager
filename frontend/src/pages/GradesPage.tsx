@@ -22,6 +22,7 @@ export default function GradesPage() {
   const [showGradeUpload, setShowGradeUpload] = useState(false);
   const [classIdFromStudent, setClassIdFromStudent] = useState<string>('');
   const [studentName, setStudentName] = useState<string>('');
+  const [latestValues, setLatestValues] = useState<Record<string, string>>({});
   const { data: grades } = useGrades(studentId || '', semesterId || undefined);
   const upsert = useUpsertGrade(studentId || '', semesterId || undefined);
 
@@ -123,9 +124,18 @@ export default function GradesPage() {
           semesterId={semesterId}
           studentId={studentId}
           onUpsert={handleUpsert}
+          onValuesChange={setLatestValues}
         />
       ) : (
-        <GradeRadarChart subjects={subjects} grades={grades || []} />
+        <GradeRadarChart
+          subjects={subjects}
+          grades={grades || []}
+          overrideScores={Object.fromEntries(
+            Object.entries(latestValues)
+              .map(([sid, v]) => [sid, v === '' ? undefined : Number(v)])
+              .filter(([, n]) => typeof n === 'number' && !Number.isNaN(n as number) && (n as number) >= 0 && (n as number) <= 100) as [string, number][]
+          )}
+        />
       )}
       {showGradeUpload && classIdFromStudent && semesterId && (
         <GradeExcelUploadModal
