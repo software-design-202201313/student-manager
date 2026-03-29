@@ -63,7 +63,7 @@ function StudentRow({ s }: { s: StudentSummary }) {
       onClick={() => navigate(`/students/${s.id}`)}
     >
       <td className="p-2 border text-center">{s.student_number}</td>
-      <td className="p-2 border">{s.name}</td>
+      <td className="p-2 border text-center">{s.name}</td>
       <td className="p-2 border text-center">{genderLabel(detail?.gender)}</td>
       <td className="p-2 border text-center">{attendanceLabel(attendance && attendance[0]?.status)}</td>
       <td className="p-2 border">
@@ -86,7 +86,7 @@ export default function StudentList({ students }: { students: StudentSummary[] }
       <thead className="bg-gray-50">
         <tr>
           <th className="p-2 border">번호</th>
-          <th className="p-2 border">이름</th>
+          <th className="p-2 border text-center">이름</th>
           <th className="p-2 border">성별</th>
           <th className="p-2 border">오늘 출결</th>
           <th className="p-2 border">특이사항</th>

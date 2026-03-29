@@ -48,3 +48,7 @@ export async function createStudent(
   const { data } = await apiClient.post<StudentDetail>(`/classes/${classId}/students`, body);
   return data;
 }
+
+export async function deleteStudent(id: string): Promise<void> {
+  await apiClient.delete(`/students/${id}`);
+}
