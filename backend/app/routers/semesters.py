@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies.auth import require_role
+from app.dependencies.auth import require_role, get_current_user
 from app.dependencies.db import get_db
 from app.errors import AppException
 from app.models.semester import Semester
@@ -32,7 +32,7 @@ async def create_semester(
 @router.get("", response_model=list[SemesterResponse])
 async def list_semesters(
     db: AsyncSession = Depends(get_db),
-    _: object = Depends(require_role("teacher")),
+    _current: object = Depends(get_current_user),  # any authenticated user may read
 ):
     result = await db.execute(select(Semester).order_by(Semester.year.desc(), Semester.term.desc()))
     items = result.scalars().all()
