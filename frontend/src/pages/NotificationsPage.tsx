@@ -26,18 +26,24 @@ export default function NotificationsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">알림</h1>
       <button className="border px-3 py-1 rounded" onClick={() => markAll.mutate()}>전체 읽음 처리</button>
-      <ul className="space-y-2">
-        {data?.map((n) => (
-          <li key={n.id} className={`border p-2 rounded ${n.is_read ? 'opacity-60' : ''}`}>
-            <div className="text-xs text-gray-600">{new Date(n.created_at).toLocaleString()}</div>
-            <div className="text-sm">{n.message}</div>
-            {!n.is_read && (
-              <button className="mt-1 text-blue-600 underline text-xs" onClick={() => markOne.mutate(n.id)}>읽음</button>
-            )}
-          </li>
-        ))}
-      </ul>
+      {(!data || data.length === 0) ? (
+        <div className="text-center py-12 text-gray-400">
+          <p className="text-lg">알림이 없습니다</p>
+          <p className="text-sm mt-1">새로운 알림이 오면 여기에 표시됩니다.</p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {data.map((n) => (
+            <li key={n.id} className={`border p-2 rounded ${n.is_read ? 'opacity-60' : ''}`}>
+              <div className="text-xs text-gray-600">{new Date(n.created_at).toLocaleString()}</div>
+              <div className="text-sm">{n.message}</div>
+              {!n.is_read && (
+                <button className="mt-1 text-blue-600 underline text-xs" onClick={() => markOne.mutate(n.id)}>읽음</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
-
