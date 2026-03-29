@@ -15,3 +15,9 @@ export async function createClass(body: { name: string; grade: number; year: num
   const { data } = await apiClient.post<ClassSummary>('/classes', body);
   return data;
 }
+
+export async function deleteClass(classId: string, opts?: { force?: boolean }): Promise<void> {
+  const params: Record<string, any> = {};
+  if (opts?.force) params.force = true;
+  await apiClient.delete(`/classes/${classId}`, { params });
+}
