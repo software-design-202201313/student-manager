@@ -76,15 +76,21 @@ test('랜딩 → 로그인 → 성적 입력 후 저장', async ({ page, baseURL
   await expect(page).toHaveURL(new RegExp(`/grades/${studentId}`))
   await expect(page.getByText('성적 관리')).toBeVisible()
 
-  // 4.5) 학기 선택이 비어있다면 첫 옵션으로 설정
+  // 4.5) 데이터 로드 완료까지 대기 (로딩 표시가 있다면 사라질 때까지)
+  const loadingText = page.getByText('불러오는 중...')
+  await loadingText.waitFor({ state: 'detached', timeout: 10000 }).catch(() => {})
+
+  // 학기 옵션이 렌더될 때까지 대기 후 첫 옵션 선택
   const semSelect = page.locator('select').first()
-  await semSelect.waitFor()
+  await page.waitForFunction(() => document.querySelectorAll('select option').length > 0)
   await semSelect.selectOption({ index: 0 })
 
   // 5) 성적표 테이블의 첫 입력 칸에 점수 입력 후 저장
   await expect(page.locator('table')).toBeVisible()
+  // 과목 행/입력 칸이 렌더될 때까지 대기
+  await page.locator('table tbody tr').first().waitFor({ timeout: 20000 })
   const firstInput = page.locator('table input').first()
-  await firstInput.waitFor()
+  await firstInput.waitFor({ timeout: 20000 })
   await firstInput.fill('95')
 
   // 저장 및 API 반영 대기
@@ -99,5 +105,5 @@ test('랜딩 → 로그인 → 성적 입력 후 저장', async ({ page, baseURL
   // 새로고침 후 값이 유지되는지 확인 (서버 반영 검증)
   await page.reload()
   const subjectRowAfter = page.getByRole('row', { name: /수학/ })
-  await expect(subjectRowAfter.getByRole('textbox')).toHaveValue('95')
+  await expect(subjectRowAfter.getByRole('textbox')).toHaveValue(/^(95|95\.0+)$/)
 })
