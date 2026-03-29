@@ -24,6 +24,15 @@ export async function createAttendance(studentId: string, body: { date: string; 
   return data;
 }
 
+export async function updateAttendance(
+  studentId: string,
+  attendanceId: string,
+  body: { date: string; status: Attendance['status']; note?: string | null },
+): Promise<Attendance> {
+  const { data } = await apiClient.put<Attendance>(`/students/${studentId}/attendance/${attendanceId}`, body);
+  return data;
+}
+
 export async function listSpecialNotes(studentId: string): Promise<SpecialNote[]> {
   const { data } = await apiClient.get<SpecialNote[]>(`/students/${studentId}/special-notes`);
   return data;

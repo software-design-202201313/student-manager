@@ -39,7 +39,8 @@ describe('StudentListPage', () => {
       </QueryClientProvider>
     );
 
-    const exportBtn = screen.getByRole('button', { name: 'Excel로 내보내기' });
+    // UI 사용 문구는 '엑셀로 내보내기'이므로 해당 레이블을 기준으로 조회
+    const exportBtn = screen.getByRole('button', { name: '엑셀로 내보내기' });
     await waitFor(() => expect(exportBtn).toBeEnabled());
 
     await user.click(exportBtn);

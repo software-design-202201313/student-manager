@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getStudent, listAttendance, listSpecialNotes, createAttendance, createSpecialNote, deleteStudent } from '../api/students';
 import StudentDetail from '../components/students/StudentDetail';
@@ -11,6 +12,7 @@ import toast from 'react-hot-toast';
 export default function StudentDetailPage() {
   const { studentId } = useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [student, setStudent] = useState<StudentDetailType | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [notes, setNotes] = useState<SpecialNote[]>([]);
@@ -50,7 +52,19 @@ export default function StudentDetailPage() {
             onClick={async () => {
               if (!confirm('학생을 삭제하시겠습니까?\n(출결, 특기사항, 성적, 상담, 연결된 학부모 정보가 함께 삭제됩니다)')) return;
               try {
-                await deleteStudent(student.id);
+                const removedId = student.id;
+                await deleteStudent(removedId);
+                // Optimistically drop this student from any cached student lists
+                qc.setQueriesData<any[]>({ queryKey: ['students'] }, (old) => {
+                  if (!Array.isArray(old)) return old;
+                  return old.filter((s) => s && s.id !== removedId);
+                });
+                // Remove per-student caches that could trigger background fetches
+                qc.removeQueries({ queryKey: ['student', removedId] });
+                qc.removeQueries({ queryKey: ['attendance-today', removedId] });
+                qc.removeQueries({ queryKey: ['special-notes', removedId] });
+                // Ensure any remaining views refetch fresh lists
+                qc.invalidateQueries({ queryKey: ['students'] });
                 toast.success('학생을 삭제했습니다.');
                 // 선택된 학급 유지
                 navigate('/students');

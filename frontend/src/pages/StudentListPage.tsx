@@ -18,12 +18,16 @@ export default function StudentListPage() {
       return undefined;
     }
   });
-  // Default to first class when available (set once classes arrive)
+  // Ensure selected classId is valid; default to first available
   useEffect(() => {
-    if (!classId && classes.length > 0) {
-      setClassId(classes[0].id);
+    if (classes.length === 0) return;
+    const exists = classId && classes.some((c) => c.id === classId);
+    if (!exists) {
+      const next = classes[0]?.id;
+      setClassId(next);
+      try { if (next) localStorage.setItem('selectedClassId', next); } catch {}
     }
-  }, [classes, classId]);
+  }, [classes]);
   const effectiveClassId = useMemo(() => classId, [classId]);
   const { data: students, isLoading } = useStudents(effectiveClassId);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -123,7 +127,8 @@ export default function StudentListPage() {
           <button
             className="px-3 py-1 rounded text-sm border"
             onClick={() => {
-              if (!effectiveClassId) {
+              // Require a valid class in the current list
+              if (!effectiveClassId || !classes.some((c) => c.id === effectiveClassId)) {
                 toast.error('학급을 먼저 선택하세요.');
                 return;
               }
