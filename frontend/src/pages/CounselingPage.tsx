@@ -48,7 +48,7 @@ export default function CounselingPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filterClassId, setFilterClassId] = useState<string>('');
-  const [filterStudentId, setFilterStudentId] = useState<string>('');
+  const [studentSearch, setStudentSearch] = useState<string>('');
   const { data: filterStudents } = useStudents(filterClassId || undefined);
   const [selectedCounselingId, setSelectedCounselingId] = useState<string | null>(null);
 
@@ -208,25 +208,24 @@ export default function CounselingPage() {
             value={filterClassId}
             onChange={(id) => {
               setFilterClassId(id);
-              setFilterStudentId('');
             }}
           />
         </div>
-        {filterClassId && (
-          <div>
-            <label className="text-sm text-gray-600">학생 필터</label>
-            <StudentSelector
-              value={filterStudentId}
-              onChange={setFilterStudentId}
-              classId={filterClassId}
-            />
-          </div>
-        )}
-        {(filterClassId || filterStudentId) && (
+        <div className="flex-1">
+          <label className="text-sm text-gray-600">학생 이름 검색</label>
+          <input
+            type="text"
+            placeholder="이름으로 검색"
+            className="border w-full p-1 text-sm"
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+          />
+        </div>
+        {(filterClassId || studentSearch) && (
           <button
             type="button"
             className="px-2 py-1 text-xs border rounded text-gray-600"
-            onClick={() => { setFilterClassId(''); setFilterStudentId(''); }}
+            onClick={() => { setFilterClassId(''); setStudentSearch(''); }}
           >
             필터 초기화
           </button>
@@ -241,11 +240,17 @@ export default function CounselingPage() {
         <div className="space-y-2">
           {(() => {
             let list = counselings ?? [];
-            if (filterStudentId) {
-              list = list.filter((cs) => cs.student_id === filterStudentId);
-            } else if (filterClassId && filterStudents) {
-              const studentIds = new Set((filterStudents ?? []).map((s) => s.id));
-              list = list.filter((cs) => studentIds.has(cs.student_id));
+            // 1) Class filter narrows by students of the class
+            if (filterClassId && filterStudents) {
+              const ids = new Set((filterStudents ?? []).map((s) => s.id));
+              list = list.filter((cs) => ids.has(cs.student_id));
+            }
+            // 2) Name search across candidate students (class-filtered if set)
+            const pool = (filterClassId ? filterStudents : allStudents) || [];
+            if (studentSearch.trim()) {
+              const q = studentSearch.trim().toLowerCase();
+              const nameIds = new Set(pool.filter((s) => s.name.toLowerCase().includes(q)).map((s) => s.id));
+              list = list.filter((cs) => nameIds.has(cs.student_id));
             }
             return list;
           })().map((cs) => (

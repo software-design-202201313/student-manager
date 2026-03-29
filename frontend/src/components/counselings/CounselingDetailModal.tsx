@@ -48,6 +48,7 @@ export default function CounselingDetailModal({
             <button
               className="px-3 py-1 text-sm border rounded text-indigo-600 border-indigo-300 disabled:opacity-50"
               disabled={!canEdit}
+              type="button"
               onClick={() => canEdit && onEdit(counseling)}
             >
               수정
@@ -55,11 +56,12 @@ export default function CounselingDetailModal({
             <button
               className="px-3 py-1 text-sm border rounded text-red-600 border-red-300 disabled:opacity-50"
               disabled={!canEdit}
+              type="button"
               onClick={() => canEdit && onDelete(counseling.id)}
             >
               삭제
             </button>
-            <button className="px-3 py-1 text-sm border rounded" onClick={onClose}>닫기</button>
+            <button type="button" className="px-3 py-1 text-sm border rounded" onClick={onClose}>닫기</button>
           </div>
         </div>
         {!canEdit && (
