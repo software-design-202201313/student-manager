@@ -36,11 +36,11 @@ export default function GradeTable({ subjects, grades, semesterId, studentId, on
       .map((s) => {
         const g = gradeMap.get(s.id);
         const cur = values[s.id] ?? '';
-        const curNum = cur === '' ? null : Number(cur);
-        const isNum = cur !== '' && !Number.isNaN(curNum) && curNum >= 0 && curNum <= 100;
+        const parsed = Number(cur);
+        const isNum = cur !== '' && !Number.isNaN(parsed) && parsed >= 0 && parsed <= 100;
         const prevNum = g?.score ?? null;
-        // Changed if: valid number and different from previous OR previous had a number and now empty (treat as no change for now)
-        if (isNum && prevNum !== curNum) return s.id;
+        // Changed if: valid number and different from previous
+        if (isNum && prevNum !== parsed) return s.id;
         return null;
       })
       .filter((x): x is string => !!x);
