@@ -3,7 +3,7 @@ import { useFeedbacks } from '../hooks/useFeedbacks';
 import { useCounselings } from '../hooks/useCounselings';
 import { useAuthStore } from '../stores/authStore';
 import type { Feedback } from '../types';
-// (Task 1 only) — routing links added in Task 2
+import { Link } from 'react-router-dom';
 
 const CATEGORY_LABEL: Record<string, string> = {
   grade: '성적',
@@ -19,9 +19,9 @@ export default function DashboardPage() {
   const { data: counselings } = useCounselings();
 
   const stats = [
-    { label: '담당 학생 수', value: students?.length ?? '-' },
-    { label: '피드백 수', value: feedbacks?.length ?? '-' },
-    { label: '상담 기록 수', value: counselings?.length ?? '-' },
+    { label: '담당 학생 수', value: students?.length ?? '-', href: '/students' },
+    { label: '피드백 수', value: feedbacks?.length ?? '-', href: '/feedbacks' },
+    { label: '상담 기록 수', value: counselings?.length ?? '-', href: '/counselings' },
   ];
 
   const recentFeedbacks = (feedbacks ?? []).slice(-3).reverse();
@@ -34,10 +34,14 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((s) => (
-          <div key={s.label} className="border rounded p-4 text-center bg-white">
+          <Link
+            key={s.label}
+            to={s.href}
+            className="border rounded p-4 text-center bg-white hover:shadow-md transition-shadow cursor-pointer block"
+          >
             <div className="text-2xl font-bold text-indigo-600">{s.value}</div>
             <div className="text-sm text-gray-500 mt-1">{s.label}</div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -45,7 +49,7 @@ export default function DashboardPage() {
         <div className="border rounded p-4 space-y-2 bg-white">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">최근 피드백</h2>
-            <a href="/feedbacks" className="text-xs text-indigo-600 hover:underline">전체 보기</a>
+            <Link to="/feedbacks" className="text-xs text-indigo-600 hover:underline">전체 보기</Link>
           </div>
           {recentFeedbacks.length === 0 ? (
             <p className="text-xs text-gray-400">없음</p>
@@ -64,7 +68,7 @@ export default function DashboardPage() {
         <div className="border rounded p-4 space-y-2 bg-white">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">최근 상담</h2>
-            <a href="/counselings" className="text-xs text-indigo-600 hover:underline">전체 보기</a>
+            <Link to="/counselings" className="text-xs text-indigo-600 hover:underline">전체 보기</Link>
           </div>
           {recentCounselings.length === 0 ? (
             <p className="text-xs text-gray-400">없음</p>
