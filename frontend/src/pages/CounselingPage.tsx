@@ -5,7 +5,9 @@ import {
   useCreateCounseling,
   useUpdateCounseling,
 } from '../hooks/useCounselings';
+import { useStudents } from '../hooks/useStudents';
 import StudentSelector from '../components/ui/StudentSelector';
+import ClassSelector from '../components/classes/ClassSelector';
 import type { Counseling } from '../types';
 
 interface CounselingFormState {
@@ -28,8 +30,10 @@ export default function CounselingPage() {
   const { data: counselings, isLoading } = useCounselings();
   const createCs = useCreateCounseling();
   const updateCs = useUpdateCounseling();
+  const { data: allStudents } = useStudents();
 
   const [form, setForm] = useState<CounselingFormState>(EMPTY_FORM);
+  const [classId, setClassId] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -75,6 +79,12 @@ export default function CounselingPage() {
     setShowForm(true);
   };
 
+  function getStudentName(studentId: string): string {
+    return allStudents?.find((s) => s.id === studentId)?.name ?? '알 수 없음';
+  }
+
+  // delete handled in Task 6 commit
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -91,10 +101,24 @@ export default function CounselingPage() {
         <form onSubmit={handleSubmit} className="border rounded p-4 space-y-3 bg-gray-50">
           <div className="grid grid-cols-2 gap-3">
             <div>
+              <label className="text-sm text-gray-600">학급</label>
+              <ClassSelector
+                value={classId}
+                onChange={(id) => {
+                  setClassId(id);
+                  setForm((prev) => ({ ...prev, student_id: '' }));
+                }}
+                disabled={!!editingId}
+                required
+              />
+            </div>
+            <div>
               <label className="text-sm text-gray-600">학생</label>
               <StudentSelector
                 value={form.student_id}
                 onChange={(id) => setForm({ ...form, student_id: id })}
+                classId={classId || undefined}
+                disabled={!!editingId || !classId}
                 required
               />
             </div>
@@ -149,6 +173,8 @@ export default function CounselingPage() {
         </form>
       )}
 
+      {/* 필터 영역 (Task 7) applied in a later commit */}
+
       {isLoading ? (
         <div>불러오는 중...</div>
       ) : (counselings ?? []).length === 0 ? (
@@ -158,7 +184,10 @@ export default function CounselingPage() {
           {(counselings ?? []).map((cs) => (
             <div key={cs.id} className="border rounded p-3 space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">{cs.date}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{getStudentName(cs.student_id)}</span>
+                  <span className="text-xs text-gray-500">{cs.date}</span>
+                </div>
                 {cs.is_shared && (
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                     공유됨
