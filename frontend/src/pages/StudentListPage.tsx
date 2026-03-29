@@ -67,7 +67,7 @@ export default function StudentListPage() {
             <button className="px-2 py-1 text-sm border rounded" onClick={() => setShowClassCreate(true)}>학급 추가</button>
           )}
           <button
-            className="px-2 py-1 text-sm border rounded text-red-700 border-red-300 disabled:opacity-50"
+            className="px-2 py-1 text-sm border rounded text-red-700 border-red-300 disabled:opacity-50 ml-4"
             disabled={!effectiveClassId}
             onClick={async () => {
               if (!effectiveClassId) return;
