@@ -17,3 +17,15 @@ backend/.env
 frontend/node_modules/
 frontend/.env
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+
+# Local DBs, logs, coverage
+backend/dev.db
+backend/test-e2e.db
+backend/.coverage
+backend_uvicorn.log
+backend_uvicorn.pid
+frontend_vite.log
+frontend_vite.pid
+test.db
