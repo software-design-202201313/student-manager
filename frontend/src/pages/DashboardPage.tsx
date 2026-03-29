@@ -2,6 +2,15 @@ import { useStudents } from '../hooks/useStudents';
 import { useFeedbacks } from '../hooks/useFeedbacks';
 import { useCounselings } from '../hooks/useCounselings';
 import { useAuthStore } from '../stores/authStore';
+import type { Feedback } from '../types';
+// (Task 1 only) — routing links added in Task 2
+
+const CATEGORY_LABEL: Record<string, string> = {
+  grade: '성적',
+  behavior: '행동',
+  attendance: '출결',
+  attitude: '태도',
+};
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -41,11 +50,15 @@ export default function DashboardPage() {
           {recentFeedbacks.length === 0 ? (
             <p className="text-xs text-gray-400">없음</p>
           ) : (
-            recentFeedbacks.map((fb) => (
-              <p key={fb.id} className="text-xs text-gray-600 truncate">
-                [{fb.category}] {fb.content}
-              </p>
-            ))
+            recentFeedbacks.map((fb) => {
+              const studentName = students?.find((s) => s.id === fb.student_id)?.name;
+              return (
+                <p key={fb.id} className="text-xs text-gray-600 truncate">
+                  <span className="font-medium">{studentName ?? '알 수 없음'}</span>{' '}
+                  [{CATEGORY_LABEL[(fb as any).category] ?? (fb as any).category}] {fb.content}
+                </p>
+              );
+            })
           )}
         </div>
         <div className="border rounded p-4 space-y-2 bg-white">
@@ -56,11 +69,15 @@ export default function DashboardPage() {
           {recentCounselings.length === 0 ? (
             <p className="text-xs text-gray-400">없음</p>
           ) : (
-            recentCounselings.map((cs) => (
-              <p key={cs.id} className="text-xs text-gray-600 truncate">
-                {cs.date} — {cs.content}
-              </p>
-            ))
+            recentCounselings.map((cs) => {
+              const studentName = students?.find((s) => s.id === cs.student_id)?.name;
+              return (
+                <p key={cs.id} className="text-xs text-gray-600 truncate">
+                  <span className="font-medium">{studentName ?? '알 수 없음'}</span>{' '}
+                  {cs.date} — {cs.content}
+                </p>
+              );
+            })
           )}
         </div>
       </div>
