@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { listClasses } from '../api/classes';
+import { listClasses, deleteClass, listSubjects } from '../api/classes';
 import { useStudents } from '../hooks/useStudents';
 import StudentList from '../components/students/StudentList';
 import ExcelUploadModal from '../components/students/ExcelUploadModal';
@@ -28,6 +28,11 @@ export default function StudentListPage() {
     const c = classes.find((x) => x.id === effectiveClassId);
     return c ? `${c.year}학년도 ${c.grade}학년 ${c.name}` : undefined;
   }, [classes, effectiveClassId]);
+
+  const nextStudentNumber = useMemo(() => {
+    if (!students || students.length === 0) return 1;
+    return Math.max(...students.map((s) => s.student_number)) + 1;
+  }, [students]);
 
   useEffect(() => {
     (async () => {
@@ -58,6 +63,43 @@ export default function StudentListPage() {
               <button className="px-2 py-1 text-sm border rounded" onClick={() => setShowClassCreate(true)}>학급 만들기</button>
             </div>
           )}
+          {classes.length > 0 && (
+            <button className="px-2 py-1 text-sm border rounded" onClick={() => setShowClassCreate(true)}>학급 추가</button>
+          )}
+          <button
+            className="px-2 py-1 text-sm border rounded text-red-700 border-red-300 disabled:opacity-50"
+            disabled={!effectiveClassId}
+            onClick={async () => {
+              if (!effectiveClassId) return;
+              const target = classes.find((c) => c.id === effectiveClassId);
+              const label = target ? `${target.year}학년도 ${target.grade}학년 ${target.name}` : '이 학급';
+              // 데이터 존재 여부 확인 (학생/과목)
+              let hasData = false;
+              try {
+                const subs = await listSubjects(effectiveClassId);
+                hasData = (students && students.length > 0) || (subs && subs.length > 0);
+              } catch {
+                hasData = !!(students && students.length > 0);
+              }
+              const confirmMsg = hasData
+                ? `${label}에 데이터가 있습니다.\n정말로 삭제하시겠습니까?\n(학생/과목/성적/상담/피드백 등이 함께 삭제됩니다)`
+                : `${label}을(를) 삭제하시겠습니까?`;
+              if (!confirm(confirmMsg)) return;
+              try {
+                await deleteClass(effectiveClassId, { force: hasData });
+                const next = classes.filter((c) => c.id !== effectiveClassId);
+                setClasses(next);
+                setClassId(next.length > 0 ? next[0].id : undefined);
+                toast.success('학급을 삭제했습니다.');
+              } catch (e: any) {
+                const code = e?.response?.data?.code;
+                if (code === 'CLASS_NOT_EMPTY') toast.error('학생/과목이 있어 삭제할 수 없습니다.');
+                else toast.error('삭제 중 오류가 발생했습니다.');
+              }
+            }}
+          >
+            학급 삭제
+          </button>
         </div>
         <div className="flex gap-2">
           <button
@@ -91,7 +133,7 @@ export default function StudentListPage() {
               if (students) await exportStudentsToExcel(students, currentClassLabel);
             }}
           >
-            Excel로 내보내기
+            엑셀로 내보내기
           </button>
         </div>
       </div>
@@ -106,7 +148,7 @@ export default function StudentListPage() {
         <ExcelUploadModal classId={effectiveClassId} onClose={() => setShowUploadModal(false)} />
       )}
       {showCreateForm && effectiveClassId && (
-        <StudentCreateForm classId={effectiveClassId} onClose={() => setShowCreateForm(false)} />
+        <StudentCreateForm classId={effectiveClassId} nextStudentNumber={nextStudentNumber} onClose={() => setShowCreateForm(false)} />
       )}
       {showClassCreate && (
         <ClassCreateModal
