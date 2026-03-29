@@ -44,3 +44,42 @@ async def test_subject_create_list_delete(auth_client_teacher):
     )
     assert del_res.status_code == 204
 
+
+@pytest.mark.asyncio
+async def test_delete_empty_class_returns_204(auth_client_teacher):
+    # create a class without students/subjects
+    res = await auth_client_teacher.post(
+        "/api/v1/classes", json={"name": "삭제용", "grade": 1, "year": 2026}
+    )
+    assert res.status_code == 201
+    cls = res.json()
+
+    # delete the class
+    del_res = await auth_client_teacher.delete(f"/api/v1/classes/{cls['id']}")
+    assert del_res.status_code == 204
+
+    # ensure it's gone from list
+    res2 = await auth_client_teacher.get("/api/v1/classes")
+    assert res2.status_code == 200
+    assert not any(c["id"] == cls["id"] for c in res2.json())
+
+
+@pytest.mark.asyncio
+async def test_delete_class_with_students_returns_409(auth_client_teacher):
+    # create a class
+    cls = (
+        await auth_client_teacher.post(
+            "/api/v1/classes", json={"name": "삭제실패반", "grade": 1, "year": 2026}
+        )
+    ).json()
+    # create a student in the class
+    stu_res = await auth_client_teacher.post(
+        f"/api/v1/classes/{cls['id']}/students", json={"name": "홍길동", "student_number": 1}
+    )
+    assert stu_res.status_code == 201
+
+    # attempt to delete should conflict
+    del_res = await auth_client_teacher.delete(f"/api/v1/classes/{cls['id']}")
+    assert del_res.status_code == 409
+    data = del_res.json()
+    assert data.get("code") == "CLASS_NOT_EMPTY"

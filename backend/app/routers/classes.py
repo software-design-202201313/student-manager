@@ -1,7 +1,7 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, status, Query, Request
+from sqlalchemy import select, delete, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +10,12 @@ from app.dependencies.db import get_db
 from app.errors import AppException
 from app.models.class_ import Class
 from app.models.grade import Grade
+from app.models.attendance import Attendance
+from app.models.special_note import SpecialNote
+from app.models.feedback import Feedback
+from app.models.counseling import Counseling
+from app.models.parent_student import ParentStudent
+from app.models.student import Student
 from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.class_ import ClassCreate, ClassResponse
@@ -154,3 +160,64 @@ async def create_student(
         phone=student.phone,
         address=student.address,
     )
+
+
+@router.delete("/{class_id}", status_code=204)
+async def delete_class(
+    request: Request,
+    class_id: str,
+    force: bool = Query(default=False, description="데이터가 있어도 강제 삭제"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("teacher")),
+):
+    # Verify class ownership
+    result = await db.execute(select(Class).where(Class.id == uuid.UUID(class_id)))
+    cls = result.scalar_one_or_none()
+    if cls is None:
+        raise AppException(404, "Class not found", "CLASS_NOT_FOUND")
+    _ensure_class_owner(cls, current_user)
+
+    # Check related data
+    students_result = await db.execute(select(Student.id).where(Student.class_id == cls.id))
+    student_ids = [row[0] for row in students_result.all()]
+    subjects_result = await db.execute(select(Subject.id).where(Subject.class_id == cls.id))
+    subject_ids = [row[0] for row in subjects_result.all()]
+
+    # Defensive: also honor raw query param in case of parsing edge-cases
+    raw_force = request.query_params.get("force")
+    if isinstance(raw_force, str) and raw_force.lower() in {"1", "true", "yes"}:
+        force = True
+
+    if not force:
+        if student_ids:
+            raise AppException(409, "Class has students", "CLASS_NOT_EMPTY")
+        if subject_ids:
+            raise AppException(409, "Class has subjects", "CLASS_NOT_EMPTY")
+
+    # Force delete path: remove dependent rows first, then students/subjects, then class
+    if force:
+        # Grades tied to these students or subjects
+        grade_filters = []
+        if student_ids:
+            grade_filters.append(Grade.student_id.in_(student_ids))
+        if subject_ids:
+            grade_filters.append(Grade.subject_id.in_(subject_ids))
+        if grade_filters:
+            await db.execute(delete(Grade).where(or_(*grade_filters)))
+
+        # Attendance, SpecialNote, Feedback, Counseling, ParentStudent for students
+        if student_ids:
+            await db.execute(delete(Attendance).where(Attendance.student_id.in_(student_ids)))
+            await db.execute(delete(SpecialNote).where(SpecialNote.student_id.in_(student_ids)))
+            await db.execute(delete(Feedback).where(Feedback.student_id.in_(student_ids)))
+            await db.execute(delete(Counseling).where(Counseling.student_id.in_(student_ids)))
+            await db.execute(delete(ParentStudent).where(ParentStudent.student_id.in_(student_ids)))
+
+        # Subjects and Students
+        if subject_ids:
+            await db.execute(delete(Subject).where(Subject.id.in_(subject_ids)))
+        if student_ids:
+            await db.execute(delete(Student).where(Student.id.in_(student_ids)))
+
+    await db.delete(cls)
+    await db.commit()
