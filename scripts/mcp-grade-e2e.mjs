@@ -12,12 +12,12 @@ import path from 'node:path'
 
 const FRONTEND_DIR = path.join(process.cwd(), 'frontend')
 
-function runCD(args, { json = false, quiet = false } = {}) {
+function runCD(args, { json = false, quiet = false, env: envExtra } = {}) {
   return new Promise((resolve, reject) => {
     const cp = spawn('npm', ['--prefix', 'frontend', 'exec', '-s', 'chrome-devtools', ...args], {
       cwd: process.cwd(),
       stdio: json ? ['ignore', 'pipe', 'inherit'] : (quiet ? ['ignore', 'ignore', 'inherit'] : 'inherit'),
-      env: process.env,
+      env: envExtra ? { ...process.env, ...envExtra } : process.env,
     })
     let out = ''
     if (json) {
@@ -32,10 +32,43 @@ function runCD(args, { json = false, quiet = false } = {}) {
 }
 
 async function startServer() {
-  // Ensure daemon is up (headless). If Chrome is already running with remote debugging, you can
-  // replace with: await runCD(['start', '--browserUrl', 'http://127.0.0.1:9222'], { quiet: true })
-  await runCD(['start', '--headless'], { quiet: true })
-  await runCD(['status'], { quiet: true })
+  const browserUrl = process.env.MCP_BROWSER_URL
+  const wsEndpoint = process.env.MCP_WS_ENDPOINT
+  const skipStart = process.env.MCP_SKIP_START === '1'
+
+  if (skipStart) {
+    await runCD(['status'], { quiet: true })
+    return
+  }
+
+  const args = ['start']
+  if (browserUrl) args.push('--browserUrl', browserUrl)
+  else if (wsEndpoint) args.push('--wsEndpoint', wsEndpoint)
+  else args.push('--headless')
+
+  try {
+    await runCD(args, { quiet: true })
+    await runCD(['status'], { quiet: true })
+  } catch (e) {
+    const msg = String(e?.message || e)
+    if (/uv_os_get_passwd|ENOENT/i.test(msg)) {
+      // Try again with preloaded os.userInfo stub
+      const preload = path.resolve('scripts/polyfills/os-userinfo-stub.cjs')
+      try {
+        await runCD(args, { quiet: true, env: { NODE_OPTIONS: `--require ${preload}` } })
+        await runCD(['status'], { quiet: true, env: { NODE_OPTIONS: `--require ${preload}` } })
+        return
+      } catch (e2) {
+        throw new Error(
+          '현재 환경에서 headless 데몬 시작이 제한되었습니다(패치 재시도 실패). 로컬에서 다음 중 하나로 실행한 뒤 재시도하세요:\n' +
+          '  1) cd frontend && npm run mcp:chrome\n' +
+          '  2) 자동 연결: cd frontend && npm run mcp:chrome:auto (chrome://inspect/#remote-debugging 활성화)\n' +
+          '  3) 이미 실행 중인 Chrome에 연결: MCP_BROWSER_URL=http://127.0.0.1:9222 node scripts/mcp-grade-e2e.mjs'
+        )
+      }
+    }
+    throw e
+  }
 }
 
 async function navigate(url) {
@@ -136,4 +169,3 @@ main().catch((err) => {
   console.error('\nE2E failed:', err?.message || err)
   process.exit(1)
 })
-

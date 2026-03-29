@@ -79,6 +79,27 @@ npm run mcp:chrome:beta      # Beta 채널 Chrome 사용
 - autoConnect를 사용하려면 Chrome에서 `chrome://inspect/#remote-debugging` 페이지에서 Remote Debugging을 활성화해야 합니다.
 - 샌드박스나 CI 환경에서는 브라우저 실행이 제한될 수 있습니다. 로컬에서 실행하세요.
 
+### MCP 헬스체크
+
+로컬에서 MCP가 정상 동작하는지 빠르게 점검하려면:
+
+```bash
+node scripts/mcp-health.mjs
+```
+
+- CLI/데몬 상태를 확인하고, 필요 시 간단한 페이지 열기/스크린샷까지 검증합니다.
+- 제한된 환경(샌드박스/CI)에서는 headless 시작이 실패할 수 있습니다. 이 경우 로컬에서 `npm run mcp:chrome` 또는 `npm run mcp:chrome:auto`를 먼저 실행한 뒤 다시 점검하세요.
+
+환경 변수로 외부 Chrome에 연결할 수도 있습니다:
+
+```bash
+# 이미 원격 디버깅(예: 127.0.0.1:9222) 중인 Chrome에 연결
+MCP_BROWSER_URL=http://127.0.0.1:9222 node scripts/mcp-grade-e2e.mjs
+
+# 또는 ws 엔드포인트로 직접 연결
+MCP_WS_ENDPOINT=ws://127.0.0.1:9222/devtools/browser/<id> node scripts/mcp-grade-e2e.mjs
+```
+
 ### MCP로 성적 관리 E2E 실행
 
 사전 준비:
@@ -100,3 +121,4 @@ node scripts/mcp-grade-e2e.mjs
   - `cd frontend && npm run mcp:chrome:auto` 로 MCP 서버를 수동으로 띄운 뒤,
   - 다른 터미널에서 `node scripts/mcp-grade-e2e.mjs` 실행
 - 포트/네트워크 이슈 시 `http://localhost:5173` 접근이 가능한지 확인
+ - `uv_os_get_passwd ENOENT` 오류가 보이면 현재 런타임(샌드박스/CI)의 시스템 제한입니다. 로컬에서 Chrome을 띄운 후 실행하거나, 위의 `MCP_BROWSER_URL` 환경 변수 연결 방식을 사용하세요.
