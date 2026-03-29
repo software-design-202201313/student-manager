@@ -11,7 +11,13 @@ import { exportStudentsToExcel } from '../utils/exportHelpers';
 
 export default function StudentListPage() {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
-  const [classId, setClassId] = useState<string | undefined>(undefined);
+  const [classId, setClassId] = useState<string | undefined>(() => {
+    try {
+      return localStorage.getItem('selectedClassId') || undefined;
+    } catch {
+      return undefined;
+    }
+  });
   // Default to first class when available (set once classes arrive)
   useEffect(() => {
     if (!classId && classes.length > 0) {
@@ -52,7 +58,7 @@ export default function StudentListPage() {
         <div className="flex gap-2 items-center">
           <label className="text-sm text-gray-600">학급 선택</label>
           {classes.length > 0 ? (
-            <select className="border p-1" value={effectiveClassId || ''} onChange={(e) => setClassId(e.target.value)}>
+            <select className="border p-1" value={effectiveClassId || ''} onChange={(e) => { setClassId(e.target.value); try { localStorage.setItem('selectedClassId', e.target.value); } catch {} }}>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>{`${c.year}학년도 ${c.grade}학년 ${c.name}`}</option>
               ))}

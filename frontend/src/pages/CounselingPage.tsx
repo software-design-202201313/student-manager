@@ -35,7 +35,13 @@ export default function CounselingPage() {
   const { data: allStudents } = useStudents();
 
   const [form, setForm] = useState<CounselingFormState>(EMPTY_FORM);
-  const [classId, setClassId] = useState<string>('');
+  const [classId, setClassId] = useState<string>(() => {
+    try {
+      return localStorage.getItem('selectedClassId') ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filterClassId, setFilterClassId] = useState<string>('');
@@ -119,6 +125,7 @@ export default function CounselingPage() {
                 value={classId}
                 onChange={(id) => {
                   setClassId(id);
+                  if (id) try { localStorage.setItem('selectedClassId', id); } catch {}
                   setForm((prev) => ({ ...prev, student_id: '' }));
                 }}
                 disabled={!!editingId}

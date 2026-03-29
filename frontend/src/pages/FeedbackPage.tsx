@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   useCreateFeedback,
@@ -7,7 +7,10 @@ import {
   useUpdateFeedback,
 } from '../hooks/useFeedbacks';
 import StudentSelector from '../components/ui/StudentSelector';
-import type { Feedback } from '../types';
+import ClassSelector from '../components/classes/ClassSelector';
+import { useStudents } from '../hooks/useStudents';
+import type { Feedback, StudentSummary } from '../types';
+import FeedbackHistoryModal from '../components/feedbacks/FeedbackHistoryModal';
 
 const CATEGORIES: Feedback['category'][] = ['grade', 'behavior', 'attendance', 'attitude'];
 const CATEGORY_LABEL: Record<Feedback['category'], string> = {
@@ -40,6 +43,14 @@ export default function FeedbackPage() {
   const deleteFb = useDeleteFeedback();
 
   const [form, setForm] = useState<FeedbackFormState>(EMPTY_FORM);
+  const [classId, setClassId] = useState<string>(() => {
+    try {
+      return localStorage.getItem('selectedClassId') ?? '';
+    } catch {
+      return '';
+    }
+  });
+  const { data: students } = useStudents(classId || undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -90,16 +101,68 @@ export default function FeedbackPage() {
     await deleteFb.mutateAsync(id);
   };
 
+  function pickLatestBy<T extends { created_at: string; student_id: string }>(
+    items: T[],
+  ): Record<string, T | undefined> {
+    const map: Record<string, T | undefined> = {};
+    for (const item of items) {
+      const prev = map[item.student_id];
+      if (!prev || prev.created_at < item.created_at) map[item.student_id] = item;
+    }
+    return map;
+  }
+
+  const latestFeedbackByStudent = useMemo(
+    () => pickLatestBy<Feedback>(feedbacks ?? []),
+    [feedbacks],
+  );
+  const sortedStudents: StudentSummary[] = useMemo(() => {
+    return (students ?? []).slice().sort((a, b) => a.student_number - b.student_number);
+  }, [students]);
+
+  const [historyStudentId, setHistoryStudentId] = useState<string | null>(null);
+
+  function formatDate(dateStr?: string) {
+    if (!dateStr) return '-';
+    try {
+      return new Date(dateStr).toISOString().slice(0, 10);
+    } catch {
+      return dateStr;
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">피드백 관리</h1>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="px-3 py-1 bg-indigo-600 text-white rounded text-sm"
-        >
-          {showForm ? '닫기' : '+ 피드백 작성'}
-        </button>
+        {classId && (
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="px-3 py-1 bg-indigo-600 text-white rounded text-sm"
+          >
+            {showForm ? '닫기' : '+ 피드백 작성'}
+          </button>
+        )}
+      </div>
+
+      {/* 학급 선택 (대시보드 및 폼 공용 상태) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="text-sm text-gray-600">학급 선택</label>
+          <ClassSelector
+            value={classId}
+            onChange={(id) => {
+              setClassId(id);
+              if (id) localStorage.setItem('selectedClassId', id);
+              setForm((prev) => ({ ...prev, student_id: '' }));
+              if (!id) {
+                setShowForm(false);
+                setEditingId(null);
+              }
+            }}
+            disabled={!!editingId}
+          />
+        </div>
       </div>
 
       {showForm && (
@@ -110,6 +173,8 @@ export default function FeedbackPage() {
               <StudentSelector
                 value={form.student_id}
                 onChange={(id) => setForm({ ...form, student_id: id })}
+                classId={classId || undefined}
+                disabled={!!editingId || !classId}
                 required
               />
             </div>
@@ -172,41 +237,84 @@ export default function FeedbackPage() {
         </form>
       )}
 
-      {isLoading ? (
-        <div>불러오는 중...</div>
-      ) : (feedbacks ?? []).length === 0 ? (
-        <div className="text-gray-500 text-sm">피드백이 없습니다.</div>
-      ) : (
-        <div className="space-y-2">
-          {(feedbacks ?? []).map((fb) => (
-            <div key={fb.id} className="border rounded p-3 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
-                  {CATEGORY_LABEL[fb.category]}
-                </span>
-                <div className="flex gap-2 text-xs">
-                  {fb.is_visible_to_student && <span className="text-green-600">학생공개</span>}
-                  {fb.is_visible_to_parent && <span className="text-blue-600">학부모공개</span>}
-                </div>
-              </div>
-              <p className="text-sm">{fb.content}</p>
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => handleEdit(fb)}
-                  className="text-xs text-indigo-600 hover:underline"
-                >
-                  수정
-                </button>
-                <button
-                  onClick={() => handleDelete(fb.id)}
-                  className="text-xs text-red-500 hover:underline"
-                >
-                  삭제
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* 학급 선택 시 학생 리스트 (번호/이름/최근 피드백 일자/피드백 내용/수정/삭제) */}
+      <div className="space-y-2">
+        {!classId ? (
+          <div className="text-sm text-gray-500">학급을 먼저 선택하세요.</div>
+        ) : !students ? (
+          <div>불러오는 중...</div>
+        ) : students.length === 0 ? (
+          <div className="text-sm text-gray-500">학생이 없습니다.</div>
+        ) : (
+          <table className="w-full text-sm border bg-white">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-2 border">번호</th>
+                <th className="p-2 border">이름</th>
+                <th className="p-2 border">최근 피드백 일자</th>
+                <th className="p-2 border">피드백 내용</th>
+                <th className="p-2 border">수정</th>
+                <th className="p-2 border">삭제</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedStudents.map((s) => {
+                const fb = latestFeedbackByStudent[s.id];
+                return (
+                  <tr key={s.id} className="border-b">
+                    <td className="p-2 border text-center">{s.student_number}</td>
+                    <td className="p-2 border">{s.name}</td>
+                    <td className="p-2 border text-center">{formatDate(fb?.created_at)}</td>
+                    <td className="p-2 border">
+                      {fb ? (
+                        <button
+                          type="button"
+                          className="px-2 py-0.5 text-xs border rounded"
+                          onClick={() => setHistoryStudentId(s.id)}
+                        >
+                          내용 보기
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="p-2 border text-center">
+                      <button
+                        type="button"
+                        className="text-xs text-indigo-600 disabled:text-gray-300"
+                        disabled={!fb}
+                        onClick={() => fb && handleEdit(fb)}
+                      >
+                        수정
+                      </button>
+                    </td>
+                    <td className="p-2 border text-center">
+                      <button
+                        type="button"
+                        className="text-xs text-red-500 disabled:text-gray-300"
+                        disabled={!fb}
+                        onClick={() => fb && handleDelete(fb.id)}
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {historyStudentId && (
+        <FeedbackHistoryModal
+          studentLabel={(() => {
+            const st = (students ?? []).find((x) => x.id === historyStudentId);
+            return st ? `${st.student_number}번 ${st.name}` : '학생';
+          })()}
+          items={(feedbacks ?? []).filter((x) => x.student_id === historyStudentId)}
+          onClose={() => setHistoryStudentId(null)}
+        />
       )}
     </div>
   );
