@@ -4,6 +4,7 @@ import {
   useCounselings,
   useCreateCounseling,
   useUpdateCounseling,
+  useDeleteCounseling,
 } from '../hooks/useCounselings';
 import { useStudents } from '../hooks/useStudents';
 import StudentSelector from '../components/ui/StudentSelector';
@@ -30,6 +31,7 @@ export default function CounselingPage() {
   const { data: counselings, isLoading } = useCounselings();
   const createCs = useCreateCounseling();
   const updateCs = useUpdateCounseling();
+  const deleteCs = useDeleteCounseling();
   const { data: allStudents } = useStudents();
 
   const [form, setForm] = useState<CounselingFormState>(EMPTY_FORM);
@@ -83,7 +85,15 @@ export default function CounselingPage() {
     return allStudents?.find((s) => s.id === studentId)?.name ?? '알 수 없음';
   }
 
-  // delete handled in Task 6 commit
+  const handleDelete = async (id: string) => {
+    if (!confirm('상담 기록을 삭제하시겠습니까?')) return;
+    try {
+      await deleteCs.mutateAsync(id);
+      toast.success('상담 기록이 삭제되었습니다.');
+    } catch {
+      toast.error('삭제에 실패했습니다.');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -198,12 +208,18 @@ export default function CounselingPage() {
               {cs.next_plan && (
                 <p className="text-xs text-gray-500">다음 계획: {cs.next_plan}</p>
               )}
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => handleEdit(cs)}
                   className="text-xs text-indigo-600 hover:underline"
                 >
                   수정
+                </button>
+                <button
+                  onClick={() => handleDelete(cs.id)}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  삭제
                 </button>
               </div>
             </div>

@@ -99,3 +99,19 @@ async def list_counselings(
         .order_by(Counseling.date.desc())
     )
     return result.scalars().all()
+
+
+async def delete_counseling(
+    db: AsyncSession,
+    *,
+    counseling_id: uuid.UUID,
+    teacher_id: uuid.UUID,
+) -> None:
+    result = await db.execute(select(Counseling).where(Counseling.id == counseling_id))
+    cs = result.scalar_one_or_none()
+    if cs is None:
+        raise AppException(404, "Counseling not found", "COUNSELING_NOT_FOUND")
+    if cs.teacher_id != teacher_id:
+        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+    await db.delete(cs)
+    await db.commit()

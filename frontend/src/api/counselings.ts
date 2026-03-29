@@ -32,3 +32,7 @@ export async function updateCounseling(
   const { data } = await apiClient.put<Counseling>(`/counselings/${id}`, body);
   return data;
 }
+
+export async function deleteCounseling(id: string): Promise<void> {
+  await apiClient.delete(`/counselings/${id}`);
+}

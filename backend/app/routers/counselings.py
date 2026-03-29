@@ -8,7 +8,7 @@ from app.dependencies.auth import require_role
 from app.dependencies.db import get_db
 from app.models.user import User
 from app.schemas.counseling import CounselingCreate, CounselingResponse
-from app.services.counseling import create_counseling, list_counselings, update_counseling
+from app.services.counseling import create_counseling, delete_counseling, list_counselings, update_counseling
 
 router = APIRouter(prefix="/counselings", tags=["counselings"]) 
 
@@ -89,3 +89,15 @@ async def update_counseling_endpoint(
         created_at=cs.created_at,
     )
 
+
+@router.delete("/{counseling_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_counseling_endpoint(
+    counseling_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("teacher")),
+):
+    await delete_counseling(
+        db,
+        counseling_id=uuid.UUID(counseling_id),
+        teacher_id=current_user.id,
+    )
