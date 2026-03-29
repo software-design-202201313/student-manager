@@ -5,6 +5,7 @@ export default defineConfig({
   // where dev dependencies are not installed. Vite+esbuild still builds TSX.
   plugins: [],
   server: {
+    host: 'localhost',
     port: 5173,
     proxy: {
       '/api': {
@@ -17,5 +18,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: 'src/test/setup.ts',
+    exclude: ['e2e/**/*', 'node_modules/**/*'],
   },
 });

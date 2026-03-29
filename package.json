@@ -1,0 +1,11 @@
+{
+  "name": "student-manager",
+  "private": true,
+  "scripts": {
+    "test": "npm --prefix frontend test",
+    "e2e": "npm --prefix frontend run e2e",
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev"
+  }
+}
+
