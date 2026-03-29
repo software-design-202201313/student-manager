@@ -2,10 +2,15 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import SignupPage from './pages/SignupPage';
 import LandingPage from './pages/LandingPage';
 import RootIndex from './pages/RootIndex';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
+import SimpleLayout from './components/layout/SimpleLayout';
+import StudentHomePage from './pages/StudentHomePage';
+import ParentHomePage from './pages/ParentHomePage';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const StudentListPage = lazy(() => import('./pages/StudentListPage'));
@@ -22,6 +27,40 @@ function App() {
       <Routes>
       <Route path="/" element={<RootIndex /> } />
       <Route path="/login" element={<LoginPage />} />
+      {/* Role-aware notifications page for all authenticated users */}
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <RoleAwareLayout>
+              <NotificationsPage />
+            </RoleAwareLayout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Student & Parent dashboards (non-teacher layout) */}
+      <Route
+        path="/student"
+        element={
+          <ProtectedRoute>
+            <SimpleLayout>
+              <StudentHomePage />
+            </SimpleLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/parent"
+        element={
+          <ProtectedRoute>
+            <SimpleLayout>
+              <ParentHomePage />
+            </SimpleLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route
         path="/*"
         element={
@@ -35,7 +74,7 @@ function App() {
                   <Route path="/grades/:studentId" element={<GradesPage />} />
                   <Route path="/feedbacks" element={<FeedbackPage />} />
                   <Route path="/counselings" element={<CounselingPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
+                  {/* notifications handled by top-level role-aware route */}
                 </Routes>
               </Suspense>
             </AppLayout>
@@ -48,3 +87,11 @@ function App() {
 }
 
 export default App;
+
+// Role-aware layout wrapper for top-level routes
+import { useAuthStore } from './stores/authStore';
+function RoleAwareLayout({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((s) => s.user?.role);
+  if (role === 'teacher') return <AppLayout>{children}</AppLayout>;
+  return <SimpleLayout>{children}</SimpleLayout>;
+}

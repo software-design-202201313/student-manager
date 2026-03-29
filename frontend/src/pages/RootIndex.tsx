@@ -4,7 +4,11 @@ import LandingPage from './LandingPage';
 
 export default function RootIndex() {
   const token = useAuthStore((s) => s.accessToken);
-  if (token) return <Navigate to="/dashboard" replace />;
+  const user = useAuthStore((s) => s.user);
+  if (token) {
+    if (user?.role === 'student') return <Navigate to="/student" replace />;
+    if (user?.role === 'parent') return <Navigate to="/parent" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
   return <LandingPage />;
 }
-
