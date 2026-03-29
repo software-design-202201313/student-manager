@@ -43,26 +43,34 @@ export default function LoginPage() {
           </div>
         )}
         {error && <div className="text-red-600 text-sm">{error}</div>}
-        <input
-          className="border p-2 w-full"
-          placeholder="Email"
-          type="email"
-          name="email"
-          autoComplete="username email"
-          {...pmAttrs}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          className="border p-2 w-full"
-          placeholder="Password"
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          {...pmAttrs}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div>
+          <label htmlFor="email" className="block text-sm text-gray-600 mb-1">이메일</label>
+          <input
+            id="email"
+            className="border p-2 w-full rounded"
+            placeholder="teacher@example.com"
+            type="email"
+            name="email"
+            autoComplete="username email"
+            {...pmAttrs}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div>
+          <label htmlFor="password" className="block text-sm text-gray-600 mb-1">비밀번호</label>
+          <input
+            id="password"
+            className="border p-2 w-full rounded"
+            placeholder="비밀번호를 입력하세요"
+            type="password"
+            name="password"
+            autoComplete="current-password"
+            {...pmAttrs}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
         <button className="bg-blue-600 text-white p-2 rounded w-full" type="submit">로그인</button>
       </form>
     </div>
