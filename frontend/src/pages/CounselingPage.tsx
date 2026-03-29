@@ -38,6 +38,9 @@ export default function CounselingPage() {
   const [classId, setClassId] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [filterClassId, setFilterClassId] = useState<string>('');
+  const [filterStudentId, setFilterStudentId] = useState<string>('');
+  const { data: filterStudents } = useStudents(filterClassId || undefined);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -183,7 +186,38 @@ export default function CounselingPage() {
         </form>
       )}
 
-      {/* 필터 영역 (Task 7) applied in a later commit */}
+      {/* 필터 영역 */}
+      <div className="flex gap-3 items-end">
+        <div>
+          <label className="text-sm text-gray-600">학급 필터</label>
+          <ClassSelector
+            value={filterClassId}
+            onChange={(id) => {
+              setFilterClassId(id);
+              setFilterStudentId('');
+            }}
+          />
+        </div>
+        {filterClassId && (
+          <div>
+            <label className="text-sm text-gray-600">학생 필터</label>
+            <StudentSelector
+              value={filterStudentId}
+              onChange={setFilterStudentId}
+              classId={filterClassId}
+            />
+          </div>
+        )}
+        {(filterClassId || filterStudentId) && (
+          <button
+            type="button"
+            className="px-2 py-1 text-xs border rounded text-gray-600"
+            onClick={() => { setFilterClassId(''); setFilterStudentId(''); }}
+          >
+            필터 초기화
+          </button>
+        )}
+      </div>
 
       {isLoading ? (
         <div>불러오는 중...</div>
@@ -191,7 +225,16 @@ export default function CounselingPage() {
         <div className="text-gray-500 text-sm">상담 기록이 없습니다.</div>
       ) : (
         <div className="space-y-2">
-          {(counselings ?? []).map((cs) => (
+          {(() => {
+            let list = counselings ?? [];
+            if (filterStudentId) {
+              list = list.filter((cs) => cs.student_id === filterStudentId);
+            } else if (filterClassId && filterStudents) {
+              const studentIds = new Set((filterStudents ?? []).map((s) => s.id));
+              list = list.filter((cs) => studentIds.has(cs.student_id));
+            }
+            return list;
+          })().map((cs) => (
             <div key={cs.id} className="border rounded p-3 space-y-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
