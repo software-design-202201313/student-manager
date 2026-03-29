@@ -177,6 +177,35 @@ async def test_counseling_not_shared_not_visible_to_other_teacher(
 
 
 @pytest.mark.asyncio
+async def test_counseling_delete(auth_client_teacher, seed_teacher):
+    # Setup one student and one counseling
+    _, student_id = await _setup_class_and_student(
+        auth_client_teacher, seed_teacher, class_name="3-9", email="c6d@test.com", student_number=23
+    )
+    create_res = await auth_client_teacher.post(
+        "/api/v1/counselings",
+        json={
+            "student_id": student_id,
+            "date": "2026-03-27",
+            "content": "삭제 테스트",
+            "next_plan": None,
+            "is_shared": True,
+        },
+    )
+    assert create_res.status_code == 201
+    counseling_id = create_res.json()["id"]
+
+    # Delete
+    del_res = await auth_client_teacher.delete(f"/api/v1/counselings/{counseling_id}")
+    assert del_res.status_code == 204
+
+    # Verify it is gone
+    list_res = await auth_client_teacher.get("/api/v1/counselings", params={"student_id": student_id})
+    assert list_res.status_code == 200
+    assert all(i["id"] != counseling_id for i in list_res.json())
+
+
+@pytest.mark.asyncio
 async def test_counseling_requires_auth(client: AsyncClient):
     res = await client.get("/api/v1/counselings")
     assert res.status_code in (401, 403)

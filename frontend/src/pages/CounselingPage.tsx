@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   useCounselings,
@@ -10,6 +10,8 @@ import { useStudents } from '../hooks/useStudents';
 import StudentSelector from '../components/ui/StudentSelector';
 import ClassSelector from '../components/classes/ClassSelector';
 import type { Counseling } from '../types';
+import CounselingDetailModal from '../components/counselings/CounselingDetailModal';
+import { useAuthStore } from '../stores/authStore';
 
 interface CounselingFormState {
   student_id: string;
@@ -33,6 +35,7 @@ export default function CounselingPage() {
   const updateCs = useUpdateCounseling();
   const deleteCs = useDeleteCounseling();
   const { data: allStudents } = useStudents();
+  const me = useAuthStore((s) => s.user);
 
   const [form, setForm] = useState<CounselingFormState>(EMPTY_FORM);
   const [classId, setClassId] = useState<string>(() => {
@@ -47,6 +50,7 @@ export default function CounselingPage() {
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [filterStudentId, setFilterStudentId] = useState<string>('');
   const { data: filterStudents } = useStudents(filterClassId || undefined);
+  const [selectedCounselingId, setSelectedCounselingId] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -99,8 +103,11 @@ export default function CounselingPage() {
     try {
       await deleteCs.mutateAsync(id);
       toast.success('상담 기록이 삭제되었습니다.');
-    } catch {
-      toast.error('삭제에 실패했습니다.');
+    } catch (e: any) {
+      const code = e?.response?.data?.code;
+      const msg = code === 'FORBIDDEN' ? '삭제 권한이 없습니다.' : '삭제에 실패했습니다.';
+      console.error('Counseling delete failed', e?.response?.status, code, e?.response?.data);
+      toast.error(msg);
     }
   };
 
@@ -242,7 +249,11 @@ export default function CounselingPage() {
             }
             return list;
           })().map((cs) => (
-            <div key={cs.id} className="border rounded p-3 space-y-1">
+            <div
+              key={cs.id}
+              className="border rounded p-3 space-y-1 hover:bg-gray-50 cursor-pointer"
+              onClick={() => setSelectedCounselingId(cs.id)}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{getStudentName(cs.student_id)}</span>
@@ -258,23 +269,32 @@ export default function CounselingPage() {
               {cs.next_plan && (
                 <p className="text-xs text-gray-500">다음 계획: {cs.next_plan}</p>
               )}
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => handleEdit(cs)}
-                  className="text-xs text-indigo-600 hover:underline"
-                >
-                  수정
-                </button>
-                <button
-                  onClick={() => handleDelete(cs.id)}
-                  className="text-xs text-red-500 hover:underline"
-                >
-                  삭제
-                </button>
-              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {selectedCounselingId && (
+        (() => {
+          const cs = (counselings ?? []).find((x) => x.id === selectedCounselingId);
+          if (!cs) return null;
+          return (
+            <CounselingDetailModal
+              counseling={cs}
+              studentName={getStudentName(cs.student_id)}
+              canEdit={cs.teacher_id === (me?.id || '')}
+              onEdit={(c) => {
+                setSelectedCounselingId(null);
+                handleEdit(c);
+              }}
+              onDelete={(id) => {
+                setSelectedCounselingId(null);
+                handleDelete(id);
+              }}
+              onClose={() => setSelectedCounselingId(null)}
+            />
+          );
+        })()
       )}
     </div>
   );

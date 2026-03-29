@@ -33,6 +33,22 @@ export function useDeleteCounseling() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteCounseling(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['counselings'] }),
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: ['counselings'] });
+      const snapshots = qc.getQueriesData<Counseling[]>({ queryKey: ['counselings'] });
+      // Optimistically remove from all matching caches
+      qc.setQueriesData<Counseling[]>({ queryKey: ['counselings'] }, (old) =>
+        Array.isArray(old) ? old.filter((c) => c.id !== id) : old,
+      );
+      return { snapshots };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.snapshots) {
+        for (const [key, data] of ctx.snapshots) qc.setQueryData(key, data);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['counselings'] });
+    },
   });
 }
