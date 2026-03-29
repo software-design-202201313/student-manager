@@ -16,7 +16,7 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => vo
         >
           ☰
         </button>
-        <div className="font-semibold truncate">Student Manager</div>
+        <div className="font-semibold truncate md:hidden">Student Manager</div>
       </div>
       <div className="flex items-center gap-3">
         <NotificationBell />
