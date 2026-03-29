@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import List, Optional
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,10 @@ from app.models.class_ import Class
 from app.models.special_note import SpecialNote
 from app.models.student import Student
 from app.models.user import User
+from app.models.feedback import Feedback
+from app.models.counseling import Counseling
+from app.models.parent_student import ParentStudent
+from app.models.grade import Grade
 
 
 async def _teacher_owns_student(db: AsyncSession, *, student_id: uuid.UUID, teacher_id: uuid.UUID) -> tuple[Student, User, Class]:
@@ -225,3 +229,23 @@ async def create_student(
     await db.refresh(student)
     await db.refresh(user)
     return student, user
+
+
+async def delete_student(
+    db: AsyncSession,
+    *,
+    student_id: uuid.UUID,
+    teacher_id: uuid.UUID,
+) -> None:
+    student, _user, cls = await _teacher_owns_student(db, student_id=student_id, teacher_id=teacher_id)
+
+    # Delete dependent rows first (mirror class force-delete ordering for student scope)
+    await db.execute(delete(Grade).where(Grade.student_id == student.id))
+    await db.execute(delete(Attendance).where(Attendance.student_id == student.id))
+    await db.execute(delete(SpecialNote).where(SpecialNote.student_id == student.id))
+    await db.execute(delete(Feedback).where(Feedback.student_id == student.id))
+    await db.execute(delete(Counseling).where(Counseling.student_id == student.id))
+    await db.execute(delete(ParentStudent).where(ParentStudent.student_id == student.id))
+
+    await db.delete(student)
+    await db.commit()

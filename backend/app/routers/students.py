@@ -20,6 +20,7 @@ from app.services.student import (
     update_attendance,
     update_special_note,
     update_student,
+    delete_student,
 )
 
 router = APIRouter(prefix="/students", tags=["students"]) 
@@ -74,6 +75,15 @@ async def update_student_endpoint(
         phone=student.phone,
         address=student.address,
     )
+
+
+@router.delete("/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_student_endpoint(
+    student_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("teacher")),
+):
+    await delete_student(db, student_id=uuid.UUID(student_id), teacher_id=current_user.id)
 
 
 @router.post("/{student_id}/attendance", response_model=AttendanceResponse, status_code=status.HTTP_201_CREATED)
