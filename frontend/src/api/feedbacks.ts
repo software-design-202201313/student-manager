@@ -1,11 +1,19 @@
 import apiClient from './client';
 import type { Feedback } from '../types';
 
+function normalizeCategory(cat: string): Feedback['category'] {
+  // Map legacy 'score' to 'grade' for UI consistency
+  if (cat === 'score') return 'grade';
+  if (cat === 'grade' || cat === 'behavior' || cat === 'attendance' || cat === 'attitude') return cat;
+  // Fallback to 'grade' if unknown
+  return 'grade';
+}
+
 export async function listFeedbacks(studentId?: string): Promise<Feedback[]> {
   const { data } = await apiClient.get<Feedback[]>('/feedbacks', {
     params: studentId ? { student_id: studentId } : {},
   });
-  return data;
+  return data.map((fb: any) => ({ ...fb, category: normalizeCategory(fb.category) } as Feedback));
 }
 
 export async function createFeedback(body: {

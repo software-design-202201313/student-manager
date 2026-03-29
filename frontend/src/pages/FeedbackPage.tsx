@@ -119,6 +119,11 @@ export default function FeedbackPage() {
   const sortedStudents: StudentSummary[] = useMemo(() => {
     return (students ?? []).slice().sort((a, b) => a.student_number - b.student_number);
   }, [students]);
+  // Show only students who currently have at least one feedback
+  const studentsWithFeedback: StudentSummary[] = useMemo(() => {
+    const idsWithFb = new Set((feedbacks ?? []).map((f) => f.student_id));
+    return sortedStudents.filter((s) => idsWithFb.has(s.id));
+  }, [sortedStudents, feedbacks]);
 
   const [historyStudentId, setHistoryStudentId] = useState<string | null>(null);
 
@@ -245,6 +250,8 @@ export default function FeedbackPage() {
           <div>불러오는 중...</div>
         ) : students.length === 0 ? (
           <div className="text-sm text-gray-500">학생이 없습니다.</div>
+        ) : studentsWithFeedback.length === 0 ? (
+          <div className="text-sm text-gray-500">피드백이 없습니다.</div>
         ) : (
           <table className="w-full text-sm border bg-white">
             <thead className="bg-gray-50">
@@ -252,20 +259,19 @@ export default function FeedbackPage() {
                 <th className="p-2 border">번호</th>
                 <th className="p-2 border">이름</th>
                 <th className="p-2 border">최근 피드백 일자</th>
-                <th className="p-2 border">피드백 내용</th>
-                <th className="p-2 border">수정</th>
+                <th className="p-2 border text-center">피드백 내용</th>
                 <th className="p-2 border">삭제</th>
               </tr>
             </thead>
             <tbody>
-              {sortedStudents.map((s) => {
+              {studentsWithFeedback.map((s) => {
                 const fb = latestFeedbackByStudent[s.id];
                 return (
                   <tr key={s.id} className="border-b">
                     <td className="p-2 border text-center">{s.student_number}</td>
                     <td className="p-2 border">{s.name}</td>
                     <td className="p-2 border text-center">{formatDate(fb?.created_at)}</td>
-                    <td className="p-2 border">
+                    <td className="p-2 border text-center">
                       {fb ? (
                         <button
                           type="button"
@@ -277,16 +283,6 @@ export default function FeedbackPage() {
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
-                    </td>
-                    <td className="p-2 border text-center">
-                      <button
-                        type="button"
-                        className="text-xs text-indigo-600 disabled:text-gray-300"
-                        disabled={!fb}
-                        onClick={() => fb && handleEdit(fb)}
-                      >
-                        수정
-                      </button>
                     </td>
                     <td className="p-2 border text-center">
                       <button
@@ -313,6 +309,10 @@ export default function FeedbackPage() {
             return st ? `${st.student_number}번 ${st.name}` : '학생';
           })()}
           items={(feedbacks ?? []).filter((x) => x.student_id === historyStudentId)}
+          onEdit={(fb) => {
+            handleEdit(fb);
+            setHistoryStudentId(null);
+          }}
           onClose={() => setHistoryStudentId(null)}
         />
       )}
