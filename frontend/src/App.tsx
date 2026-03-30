@@ -42,7 +42,7 @@ function App() {
       <Route
         path="/student"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['student']}>
             <SimpleLayout>
               <StudentHomePage />
             </SimpleLayout>
@@ -52,7 +52,7 @@ function App() {
       <Route
         path="/parent"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['parent']}>
             <SimpleLayout>
               <ParentHomePage />
             </SimpleLayout>
@@ -64,7 +64,7 @@ function App() {
       <Route
         path="/*"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['teacher']}>
             <AppLayout>
               <Suspense fallback={<div className="p-4">불러오는 중...</div>}>
                 <Routes>
