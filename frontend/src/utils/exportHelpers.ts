@@ -101,6 +101,31 @@ export async function exportStudentsToExcel(students: StudentSummary[], classLab
   XLSX.writeFile(wb, filename);
 }
 
+export function exportStudentsToCSV(students: StudentSummary[], classLabel?: string) {
+  const rows = students
+    .slice()
+    .sort((a, b) => a.student_number - b.student_number)
+    .map((student) => ({
+      name: student.name,
+      student_number: student.student_number,
+      id: student.id,
+    }));
+
+  const header = ['name', 'student_number', 'id'];
+  const lines = [
+    header.join(','),
+    ...rows.map((row) => [row.name, row.student_number, row.id].map(escapeCsvCell).join(',')),
+  ];
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = classLabel ? `${safeName(classLabel)}_학생목록.csv` : '학생목록.csv';
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -108,4 +133,12 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     image.onerror = reject;
     image.src = src;
   });
+}
+
+function escapeCsvCell(value: string | number) {
+  const text = String(value ?? '');
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
 }

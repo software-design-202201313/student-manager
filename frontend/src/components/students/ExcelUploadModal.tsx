@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useUploadStudents } from '../../hooks/useImport';
-import { getStudentTemplateUrl } from '../../api/imports';
 
 export default function ExcelUploadModal({ classId, onClose }: { classId: string; onClose: () => void }) {
   const upload = useUploadStudents();
@@ -17,16 +16,15 @@ export default function ExcelUploadModal({ classId, onClose }: { classId: string
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded shadow-xl p-4 w-full max-w-lg">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold">학생 엑셀 업로드</h2>
+          <h2 className="font-semibold">학생 CSV 업로드</h2>
           <button onClick={onClose} className="text-gray-500">×</button>
         </div>
         <div className="text-sm text-gray-600 mb-2">
-          템플릿을 내려받아 형식에 맞게 작성 후 업로드하세요.{' '}
-          <a href={getStudentTemplateUrl()} className="text-indigo-600 underline">템플릿 다운로드</a>
+          `name`, `student_number`, `birth_date`, `gender`, `phone`, `address` 헤더를 가진 CSV 파일을 업로드하세요.
         </div>
         <input
           type="file"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept=".csv,text/csv"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="mb-3"
         />
@@ -56,4 +54,3 @@ export default function ExcelUploadModal({ classId, onClose }: { classId: string
     </div>
   );
 }
-

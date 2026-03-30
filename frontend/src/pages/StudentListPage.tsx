@@ -7,7 +7,7 @@ import ExcelUploadModal from '../components/students/ExcelUploadModal';
 import StudentCreateForm from '../components/students/StudentCreateForm';
 import ClassCreateModal from '../components/classes/ClassCreateModal';
 import type { ClassSummary } from '../types';
-import { exportStudentsToExcel } from '../utils/exportHelpers';
+import { exportStudentsToCSV, exportStudentsToExcel } from '../utils/exportHelpers';
 
 export default function StudentListPage() {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
@@ -135,7 +135,16 @@ export default function StudentListPage() {
               setShowUploadModal(true);
             }}
           >
-            엑셀로 등록
+            CSV로 등록
+          </button>
+          <button
+            className="px-3 py-1 rounded text-sm border"
+            disabled={!students || students.length === 0}
+            onClick={() => {
+              if (students) exportStudentsToCSV(students, currentClassLabel);
+            }}
+          >
+            CSV로 내보내기
           </button>
           <button
             className="px-3 py-1 rounded text-sm border"
