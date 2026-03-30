@@ -15,9 +15,10 @@ class CounselingResponse(BaseModel):
     id: str
     student_id: str
     teacher_id: str
+    student_name: str | None = None
+    teacher_name: str | None = None
     date: date
     content: str
     next_plan: str | None
     is_shared: bool
     created_at: datetime
-

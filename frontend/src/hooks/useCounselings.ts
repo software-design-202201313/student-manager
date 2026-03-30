@@ -2,12 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createCounseling, listCounselings, updateCounseling, deleteCounseling } from '../api/counselings';
 import type { Counseling } from '../types';
 
-const KEY = (studentId?: string) => ['counselings', studentId];
+type CounselingFilters = {
+  student_id?: string;
+  student_name?: string;
+  teacher_name?: string;
+  start_date?: string;
+  end_date?: string;
+  include_shared?: boolean;
+};
 
-export function useCounselings(studentId?: string) {
+const KEY = (filters?: CounselingFilters) => ['counselings', filters];
+
+export function useCounselings(filters?: CounselingFilters) {
   return useQuery<Counseling[]>({
-    queryKey: KEY(studentId),
-    queryFn: () => listCounselings(studentId),
+    queryKey: KEY(filters),
+    queryFn: () => listCounselings(filters),
   });
 }
 

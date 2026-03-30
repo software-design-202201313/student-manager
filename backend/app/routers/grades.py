@@ -3,15 +3,45 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import require_role
 from app.dependencies.db import get_db
+from app.models.student import Student
+from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.grade import GradeCreate, GradeResponse, GradeSummaryResponse
 from app.services.grade import create_grade, list_grades, update_grade, get_grade_summary
+from app.services.notification import create_notification, build_grade_notification_message
 
 router = APIRouter(prefix="/grades", tags=["grades"]) 
+
+
+async def _create_grade_notification(
+    db: AsyncSession,
+    *,
+    teacher: User,
+    student_id: uuid.UUID,
+    subject_id: uuid.UUID,
+):
+    student_result = await db.execute(select(Student, User).join(User, Student.user_id == User.id).where(Student.id == student_id))
+    student_row = student_result.first()
+    student_name = student_row[1].name if student_row else '학생'
+
+    subject_result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = subject_result.scalar_one_or_none()
+    subject_name = subject.name if subject else '과목'
+
+    await create_notification(
+        db,
+        recipient_id=teacher.id,
+        type="grade_input",
+        message=build_grade_notification_message(student_name, subject_name),
+        related_id=student_id,
+        related_type="grade",
+    )
+    await db.commit()
 
 
 @router.post("", response_model=GradeResponse, status_code=status.HTTP_201_CREATED)
@@ -28,6 +58,12 @@ async def create_grade_endpoint(
         score=Decimal(body.score),
         created_by=current_user.id,
         teacher_id=current_user.id,
+    )
+    await _create_grade_notification(
+        db,
+        teacher=current_user,
+        student_id=grade.student_id,
+        subject_id=grade.subject_id,
     )
     return GradeResponse(
         id=str(grade.id),
@@ -51,6 +87,12 @@ async def update_grade_endpoint(
         grade_id=uuid.UUID(grade_id),
         score=Decimal(body.score),
         teacher_id=current_user.id,
+    )
+    await _create_grade_notification(
+        db,
+        teacher=current_user,
+        student_id=grade.student_id,
+        subject_id=grade.subject_id,
     )
     return GradeResponse(
         id=str(grade.id),

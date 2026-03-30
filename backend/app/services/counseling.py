@@ -1,13 +1,16 @@
 import uuid
+from datetime import date
 from typing import List, Optional
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppException
 from app.models.class_ import Class
 from app.models.counseling import Counseling
 from app.models.student import Student
+from app.models.user import User
 
 
 async def _student_with_class(db: AsyncSession, student_id: uuid.UUID):
@@ -77,28 +80,50 @@ async def list_counselings(
     db: AsyncSession,
     *,
     teacher_id: uuid.UUID,
+    school_id: uuid.UUID,
     student_id: Optional[uuid.UUID] = None,
-) -> List[Counseling]:
-    # Teachers can see their own; other teachers in same school can see shared
-    # For MVP: return author's items; allow shared items from others for same student
-    # Here we scope to: (author == teacher) OR (is_shared == True and same school via join)
-    # Simplify: list only own items unless student_id provided; when provided, include shared items for that student
-    if student_id is None:
-        result = await db.execute(select(Counseling).where(Counseling.teacher_id == teacher_id).order_by(Counseling.date.desc()))
-        return result.scalars().all()
+    student_name: Optional[str] = None,
+    teacher_name: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    include_shared: bool = False,
+) -> List[tuple[Counseling, str, str]]:
+    student_user = aliased(User)
+    teacher_user = aliased(User)
 
-    # include shared items for that student
-    result = await db.execute(
-        select(Counseling)
-        .where(
-            and_(
-                Counseling.student_id == student_id,
-                (Counseling.teacher_id == teacher_id) | (Counseling.is_shared.is_(True)),
+    stmt = (
+        select(Counseling, student_user.name, teacher_user.name)
+        .join(Student, Counseling.student_id == Student.id)
+        .join(Class, Student.class_id == Class.id)
+        .join(student_user, Student.user_id == student_user.id)
+        .join(teacher_user, Counseling.teacher_id == teacher_user.id)
+        .where(Class.school_id == school_id)
+    )
+
+    if student_id is not None:
+        stmt = stmt.where(Counseling.student_id == student_id)
+
+    if include_shared or student_id is not None:
+        stmt = stmt.where(
+            or_(
+                Counseling.teacher_id == teacher_id,
+                Counseling.is_shared.is_(True),
             )
         )
-        .order_by(Counseling.date.desc())
-    )
-    return result.scalars().all()
+    else:
+        stmt = stmt.where(Counseling.teacher_id == teacher_id)
+
+    if student_name:
+        stmt = stmt.where(student_user.name.ilike(f"%{student_name}%"))
+    if teacher_name:
+        stmt = stmt.where(teacher_user.name.ilike(f"%{teacher_name}%"))
+    if start_date:
+        stmt = stmt.where(Counseling.date >= start_date)
+    if end_date:
+        stmt = stmt.where(Counseling.date <= end_date)
+
+    result = await db.execute(stmt.order_by(Counseling.date.desc(), Counseling.created_at.desc()))
+    return list(result.all())
 
 
 async def delete_counseling(

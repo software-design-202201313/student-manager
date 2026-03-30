@@ -73,6 +73,8 @@ export interface Counseling {
   id: string;
   student_id: string;
   teacher_id: string;
+  student_name?: string | null;
+  teacher_name?: string | null;
   date: string;
   content: string;
   next_plan: string | null;

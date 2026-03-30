@@ -1,9 +1,16 @@
 import apiClient from './client';
 import type { Counseling } from '../types';
 
-export async function listCounselings(studentId?: string): Promise<Counseling[]> {
+export async function listCounselings(params?: {
+  student_id?: string;
+  student_name?: string;
+  teacher_name?: string;
+  start_date?: string;
+  end_date?: string;
+  include_shared?: boolean;
+}): Promise<Counseling[]> {
   const { data } = await apiClient.get<Counseling[]>('/counselings', {
-    params: studentId ? { student_id: studentId } : {},
+    params,
   });
   return data;
 }

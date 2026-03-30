@@ -5,6 +5,8 @@ export interface NotificationItem {
   type: string;
   message: string;
   is_read: boolean;
+  related_id?: string | null;
+  related_type?: string | null;
   created_at: string;
 }
 
@@ -38,4 +40,3 @@ export async function updatePreferences(p: NotificationPreferences): Promise<Not
   const { data } = await apiClient.put<NotificationPreferences>('/notifications/preferences', p);
   return data;
 }
-

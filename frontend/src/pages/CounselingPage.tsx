@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   useCounselings,
@@ -30,7 +31,8 @@ const EMPTY_FORM: CounselingFormState = {
 };
 
 export default function CounselingPage() {
-  const { data: counselings, isLoading } = useCounselings();
+  const [searchParams] = useSearchParams();
+  const linkedStudentId = searchParams.get('studentId') ?? undefined;
   const createCs = useCreateCounseling();
   const updateCs = useUpdateCounseling();
   const deleteCs = useDeleteCounseling();
@@ -49,8 +51,19 @@ export default function CounselingPage() {
   const [showForm, setShowForm] = useState(false);
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [studentSearch, setStudentSearch] = useState<string>('');
+  const [teacherSearch, setTeacherSearch] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const { data: filterStudents } = useStudents(filterClassId || undefined);
   const [selectedCounselingId, setSelectedCounselingId] = useState<string | null>(null);
+  const { data: counselings, isLoading } = useCounselings({
+    student_id: linkedStudentId,
+    student_name: linkedStudentId ? undefined : studentSearch || undefined,
+    teacher_name: teacherSearch || undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
+    include_shared: true,
+  });
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -95,7 +108,9 @@ export default function CounselingPage() {
   };
 
   function getStudentName(studentId: string): string {
-    return allStudents?.find((s) => s.id === studentId)?.name ?? '알 수 없음';
+    return counselings?.find((item) => item.student_id === studentId)?.student_name
+      ?? allStudents?.find((s) => s.id === studentId)?.name
+      ?? '알 수 없음';
   }
 
   const handleDelete = async (id: string) => {
@@ -201,9 +216,9 @@ export default function CounselingPage() {
       )}
 
       {/* 필터 영역 */}
-      <div className="flex gap-3 items-end">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-5 md:items-end">
         <div>
-          <label className="text-sm text-gray-600">학급 필터</label>
+          <label className="text-sm text-gray-600" htmlFor="counseling-class-filter">학급 필터</label>
           <ClassSelector
             value={filterClassId}
             onChange={(id) => {
@@ -212,20 +227,53 @@ export default function CounselingPage() {
           />
         </div>
         <div className="flex-1">
-          <label className="text-sm text-gray-600">학생 이름 검색</label>
+          <label className="text-sm text-gray-600" htmlFor="counseling-student-search">학생 이름 검색</label>
           <input
+            id="counseling-student-search"
             type="text"
             placeholder="이름으로 검색"
             className="border w-full p-1 text-sm"
             value={studentSearch}
             onChange={(e) => setStudentSearch(e.target.value)}
+            disabled={!!linkedStudentId}
           />
         </div>
-        {(filterClassId || studentSearch) && (
+        <div>
+          <label className="text-sm text-gray-600" htmlFor="counseling-teacher-search">작성 교사</label>
+          <input
+            id="counseling-teacher-search"
+            type="text"
+            placeholder="교사 이름"
+            className="border w-full p-1 text-sm"
+            value={teacherSearch}
+            onChange={(e) => setTeacherSearch(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-sm text-gray-600" htmlFor="counseling-start-date">시작일</label>
+          <input
+            id="counseling-start-date"
+            type="date"
+            className="border w-full p-1 text-sm"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-sm text-gray-600" htmlFor="counseling-end-date">종료일</label>
+          <input
+            id="counseling-end-date"
+            type="date"
+            className="border w-full p-1 text-sm"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </div>
+        {(filterClassId || studentSearch || teacherSearch || startDate || endDate) && (
           <button
             type="button"
             className="px-2 py-1 text-xs border rounded text-gray-600"
-            onClick={() => { setFilterClassId(''); setStudentSearch(''); }}
+            onClick={() => { setFilterClassId(''); setStudentSearch(''); setTeacherSearch(''); setStartDate(''); setEndDate(''); }}
           >
             필터 초기화
           </button>
@@ -245,13 +293,6 @@ export default function CounselingPage() {
               const ids = new Set((filterStudents ?? []).map((s) => s.id));
               list = list.filter((cs) => ids.has(cs.student_id));
             }
-            // 2) Name search across candidate students (class-filtered if set)
-            const pool = (filterClassId ? filterStudents : allStudents) || [];
-            if (studentSearch.trim()) {
-              const q = studentSearch.trim().toLowerCase();
-              const nameIds = new Set(pool.filter((s) => s.name.toLowerCase().includes(q)).map((s) => s.id));
-              list = list.filter((cs) => nameIds.has(cs.student_id));
-            }
             return list;
           })().map((cs) => (
             <div
@@ -261,8 +302,9 @@ export default function CounselingPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{getStudentName(cs.student_id)}</span>
+                  <span className="text-sm font-medium">{cs.student_name ?? getStudentName(cs.student_id)}</span>
                   <span className="text-xs text-gray-500">{cs.date}</span>
+                  <span className="text-xs text-gray-500">작성: {cs.teacher_name ?? '알 수 없음'}</span>
                 </div>
                 {cs.is_shared && (
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">

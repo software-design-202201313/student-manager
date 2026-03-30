@@ -1,10 +1,48 @@
 import uuid
+import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import Notification
 from app.models.notification_preference import NotificationPreference
+
+
+_GENERATED_NAME_SUFFIX_RE = re.compile(r"-notify-\d{10,}-[a-z0-9]+$", re.IGNORECASE)
+
+_FEEDBACK_CATEGORY_LABELS = {
+    "grade": "성적",
+    "score": "성적",
+    "behavior": "행동",
+    "attendance": "출결",
+    "attitude": "태도",
+}
+
+
+def clean_notification_label(value: str | None, *, fallback: str) -> str:
+    label = (value or "").strip()
+    if not label:
+        return fallback
+
+    cleaned = _GENERATED_NAME_SUFFIX_RE.sub("", label).strip(" -")
+    return cleaned or fallback
+
+
+def build_grade_notification_message(student_name: str | None, subject_name: str | None) -> str:
+    student_label = clean_notification_label(student_name, fallback="학생")
+    subject_label = clean_notification_label(subject_name, fallback="과목")
+    return f"{student_label} · {subject_label} 성적이 저장되었어요."
+
+
+def build_feedback_notification_message(student_name: str | None, category: str | None) -> str:
+    student_label = clean_notification_label(student_name, fallback="학생")
+    category_label = _FEEDBACK_CATEGORY_LABELS.get((category or "").strip().lower(), "새")
+    return f"{student_label} · {category_label} 피드백이 등록되었어요."
+
+
+def build_counseling_notification_message(student_name: str | None) -> str:
+    student_label = clean_notification_label(student_name, fallback="학생")
+    return f"{student_label} · 상담 기록이 업데이트되었어요."
 
 
 async def create_notification(

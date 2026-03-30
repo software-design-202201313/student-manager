@@ -29,7 +29,13 @@ async def list_my_notifications(
     items = await list_notifications(db, recipient_id=current_user.id, is_read=is_read, limit=limit)
     return [
         NotificationResponse(
-            id=str(n.id), type=n.type, message=n.message, is_read=n.is_read, created_at=n.created_at
+            id=str(n.id),
+            type=n.type,
+            message=n.message,
+            is_read=n.is_read,
+            related_id=str(n.related_id) if n.related_id else None,
+            related_type=n.related_type,
+            created_at=n.created_at,
         )
         for n in items
     ]
@@ -50,7 +56,13 @@ async def mark_notification_read(
     except ValueError:
         raise AppException(404, "Notification not found", "NOT_FOUND")
     return NotificationResponse(
-        id=str(n.id), type=n.type, message=n.message, is_read=n.is_read, created_at=n.created_at
+        id=str(n.id),
+        type=n.type,
+        message=n.message,
+        is_read=n.is_read,
+        related_id=str(n.related_id) if n.related_id else None,
+        related_type=n.related_type,
+        created_at=n.created_at,
     )
 
 
