@@ -8,16 +8,36 @@ vi.mock('../../api/classes', () => ({
   listClasses: vi.fn(async () => [
     { id: 'c1', name: '1반', grade: 3, year: 2025, teacher_id: 't1' },
   ]),
+  listSubjects: vi.fn(async () => []),
+}));
+
+vi.mock('../../api/semesters', () => ({
+  listSemesters: vi.fn(async () => [{ id: 'sem1', year: 2025, term: 1 }]),
 }));
 
 vi.mock('../../hooks/useStudents', () => ({
   useStudents: () => ({
     data: [
-      { id: 's1', name: '김철수', student_number: 1 },
-      { id: 's2', name: '이영희', student_number: 2 },
+      { id: 's1', user_id: 'u1', class_id: 'c1', name: '김철수', student_number: 1 },
+      { id: 's2', user_id: 'u2', class_id: 'c1', name: '이영희', student_number: 2 },
     ],
     isLoading: false,
   }),
+}));
+
+vi.mock('../../hooks/useStudent', () => ({
+  useStudent: () => ({ data: { gender: 'male' } }),
+}));
+
+vi.mock('../../hooks/useGrades', () => ({
+  useGrades: () => ({ data: [] }),
+}));
+
+vi.mock('../../api/students', () => ({
+  listAttendance: vi.fn(async () => []),
+  listSpecialNotes: vi.fn(async () => []),
+  createAttendance: vi.fn(),
+  updateAttendance: vi.fn(),
 }));
 
 const studentsExcelSpy = vi.fn().mockResolvedValue(undefined);

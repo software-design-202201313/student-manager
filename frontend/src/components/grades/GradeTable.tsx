@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { GradeItem, Subject } from '../../types';
 import { calculateGrade } from '../../utils/gradeCalculator';
+import { getScoreValidationMessage } from '../../utils/gradeSummary';
 
 type Props = {
   subjects: Subject[];
@@ -48,10 +49,8 @@ export default function GradeTable({ subjects, grades, semesterId, studentId, on
 
   const hasInvalid = useMemo(() => {
     return subjects.some((s) => {
-      const v = values[s.id];
-      if (v == null || v === '') return false; // empty is allowed (no change)
-      const num = Number(v);
-      return Number.isNaN(num) || num < 0 || num > 100;
+      const v = values[s.id] ?? '';
+      return Boolean(getScoreValidationMessage(v));
     });
   }, [subjects, values]);
 
@@ -94,17 +93,29 @@ export default function GradeTable({ subjects, grades, semesterId, studentId, on
         <tbody>
           {subjects.map((s) => {
             const g = gradeMap.get(s.id);
-            const scoreNum = values[s.id] ? Number(values[s.id]) : undefined;
-            const rank = scoreNum != null && !Number.isNaN(scoreNum) ? calculateGrade(scoreNum) : g?.grade_rank ?? null;
+            const currentValue = values[s.id] ?? '';
+            const validationMessage = getScoreValidationMessage(currentValue);
+            const scoreNum = currentValue !== '' ? Number(currentValue) : undefined;
+            const rank =
+              scoreNum != null && !Number.isNaN(scoreNum) && !validationMessage
+                ? calculateGrade(scoreNum)
+                : g?.grade_rank ?? null;
             return (
               <tr key={s.id} className="border-b">
                 <td className="p-2 border">{s.name}</td>
                 <td className="p-2 border">
                   <input
-                    className="border p-1 w-24"
-                    value={values[s.id] ?? ''}
+                    aria-label={`${s.name} 점수 입력`}
+                    aria-invalid={validationMessage ? 'true' : 'false'}
+                    className={`border p-1 w-24 ${validationMessage ? 'border-red-500' : ''}`}
+                    value={currentValue}
                     onChange={(e) => setValues((prev) => ({ ...prev, [s.id]: e.target.value }))}
                   />
+                  {validationMessage && (
+                    <p className="mt-1 text-xs text-red-600" role="alert">
+                      {validationMessage}
+                    </p>
+                  )}
                 </td>
                 <td className="p-2 border w-24 text-center">{rank ?? '-'}</td>
               </tr>

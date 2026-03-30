@@ -177,6 +177,65 @@ async def test_grade_list_by_student_and_semester(auth_client_teacher: AsyncClie
 
 
 @pytest.mark.asyncio
+async def test_grade_list_for_other_teachers_student_forbidden(
+    auth_client_teacher: AsyncClient,
+    auth_client_teacher_other: AsyncClient,
+    seed_teacher,
+):
+    cls, sem, subj = await _bootstrap_class_semester_subject(seed_teacher, seed_teacher.school_id)
+    student_id = await _create_student(
+        auth_client_teacher, cls, email="grade-foreign-list@test.com", name="다른반학생", student_number=23
+    )
+
+    create_res = await auth_client_teacher.post(
+        "/api/v1/grades",
+        json={"student_id": student_id, "subject_id": subj.id.hex, "semester_id": sem.id.hex, "score": 88},
+    )
+    assert create_res.status_code == 201
+
+    list_res = await auth_client_teacher_other.get(
+        "/api/v1/grades",
+        params={"student_id": student_id, "semester_id": sem.id.hex},
+    )
+    assert list_res.status_code == 403
+    assert list_res.json() == {"detail": "권한이 부족합니다.", "code": "FORBIDDEN"}
+
+
+@pytest.mark.asyncio
+async def test_grade_summary_for_other_teachers_student_forbidden(
+    auth_client_teacher: AsyncClient,
+    auth_client_teacher_other: AsyncClient,
+    seed_teacher,
+):
+    cls, sem, subj = await _bootstrap_class_semester_subject(seed_teacher, seed_teacher.school_id)
+    student_id = await _create_student(
+        auth_client_teacher, cls, email="grade-foreign-summary@test.com", name="요약학생", student_number=24
+    )
+
+    create_res = await auth_client_teacher.post(
+        "/api/v1/grades",
+        json={"student_id": student_id, "subject_id": subj.id.hex, "semester_id": sem.id.hex, "score": 91},
+    )
+    assert create_res.status_code == 201
+
+    summary_res = await auth_client_teacher_other.get(
+        f"/api/v1/grades/{student_id}/summary",
+        params={"semester_id": sem.id.hex},
+    )
+    assert summary_res.status_code == 403
+    assert summary_res.json() == {"detail": "권한이 부족합니다.", "code": "FORBIDDEN"}
+
+
+@pytest.mark.asyncio
+async def test_grade_summary_missing_student_returns_404(auth_client_teacher: AsyncClient):
+    missing_student_id = str(_uuid.uuid4())
+    summary_res = await auth_client_teacher.get(f"/api/v1/grades/{missing_student_id}/summary")
+
+    assert summary_res.status_code == 404
+    assert summary_res.json() == {"detail": "Student not found", "code": "STUDENT_NOT_FOUND"}
+
+
+@pytest.mark.asyncio
 async def test_grade_rank_absolute_cutoffs(auth_client_teacher: AsyncClient, seed_teacher):
     # grade_rank uses absolute cutoffs: ≥96→1, ≥89→2, ≥77→3, ≥60→4, ...
     cls, sem, subj = await _bootstrap_class_semester_subject(seed_teacher, seed_teacher.school_id)

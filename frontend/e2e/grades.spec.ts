@@ -19,7 +19,10 @@ async function stubApi(context: BrowserContext) {
       return route.fulfill({ json: { id: 's1', user_id: 'u1', class_id: 'c1', student_number: 1, name: '홍길동' } })
     }
     if (pathname.endsWith('/semesters') && method === 'GET') {
-      return route.fulfill({ json: [{ id: 'sem1', year: 2025, term: 1 }] })
+      return route.fulfill({ json: [
+        { id: 'sem1', year: 2025, term: 1 },
+        { id: 'sem2', year: 2024, term: 2 },
+      ] })
     }
     if (/\/classes\/c1\/subjects$/.test(pathname) && method === 'GET') {
       return route.fulfill({ json: [
@@ -34,6 +37,12 @@ async function stubApi(context: BrowserContext) {
       const sem = searchParams.get('semester_id')
       if (sid === 's1' && sem === 'sem1') {
         return route.fulfill({ json: [] })
+      }
+      if (sid === 's1' && sem === 'sem2') {
+        return route.fulfill({ json: [
+          { id: 'g-prev-1', student_id: 's1', subject_id: 'sub1', semester_id: 'sem2', score: 88, grade_rank: 3 },
+          { id: 'g-prev-2', student_id: 's1', subject_id: 'sub2', semester_id: 'sem2', score: 76, grade_rank: 4 },
+        ] })
       }
     }
     if (pathname.endsWith('/grades') && method === 'POST') {
@@ -51,7 +60,7 @@ async function stubApi(context: BrowserContext) {
 }
 
 test.describe('성적 관리 UI', () => {
-  test('저장 버튼/학기 선택/레이더 반영', async ({ page, context }) => {
+  test('저장 버튼/실시간 요약/검증 메시지/비교 차트가 동작한다', async ({ page, context }) => {
     await stubApi(context)
 
     await page.goto('/grades/s1')
@@ -62,15 +71,16 @@ test.describe('성적 관리 UI', () => {
     await expect(semSelect).toBeVisible()
     await expect(semSelect).toHaveValue('sem1')
 
-    // 차트 탭에서 초기 경로 캡처
-    await page.getByRole('button', { name: '레이더 차트' }).click()
-    const chartPath = page.locator('svg path').first()
-    const initialD = await chartPath.getAttribute('d')
-
     // 표 탭으로 이동해 점수 입력
     await page.getByRole('button', { name: '성적표' }).click()
     const firstScoreInput = page.locator('table tbody tr').nth(0).locator('input')
+    await firstScoreInput.fill('101')
+
+    // 범위 초과 오류 메시지 표시
+    await expect(page.getByText('점수는 0에서 100 사이여야 합니다.')).toBeVisible()
+
     await firstScoreInput.fill('95')
+    await expect(page.getByText('95.0')).toBeVisible()
 
     // 저장 버튼 활성화 후 클릭 -> POST /grades 발생
     const saveBtn = page.getByRole('button', { name: '성적 저장' })
@@ -79,11 +89,11 @@ test.describe('성적 관리 UI', () => {
     await saveBtn.click()
     await waitPost
 
-    // 차트에 반영 확인 (path 변경)
+    // 차트 탭에서 반영 확인 및 비교 모드 표시
     await page.getByRole('button', { name: '레이더 차트' }).click()
+    const chartPath = page.locator('svg path').first()
     await expect(chartPath).toHaveAttribute('d', /.+/)
-    const newD = await chartPath.getAttribute('d')
-    expect(newD).not.toBe(initialD)
+    await page.getByLabel('이전 학기와 비교').check()
+    await expect(page.getByText('이전 학기')).toBeVisible()
   })
 })
-

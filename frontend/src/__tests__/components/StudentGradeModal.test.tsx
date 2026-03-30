@@ -19,14 +19,10 @@ vi.mock('../../api/classes', () => ({
 }));
 
 const mutateAsyncSpy = vi.fn(async () => ({}));
-vi.mock('../../hooks/useGrades', async (orig) => {
-  const mod = await orig();
-  return {
-    ...mod,
-    useGrades: () => ({ data: [] }),
-    useUpsertGrade: () => ({ mutateAsync: mutateAsyncSpy }),
-  };
-});
+vi.mock('../../hooks/useGrades', () => ({
+  useGrades: () => ({ data: [] }),
+  useUpsertGrade: () => ({ mutateAsync: mutateAsyncSpy }),
+}));
 
 import StudentGradeModal from '../../components/students/StudentGradeModal';
 

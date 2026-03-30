@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getStudent } from '../api/students';
 import { listSemesters } from '../api/semesters';
 import { listSubjects } from '../api/classes';
@@ -8,11 +8,13 @@ import GradeTable from '../components/grades/GradeTable';
 import GradeRadarChart from '../components/grades/RadarChart';
 import GradeExcelUploadModal from '../components/grades/GradeExcelUploadModal';
 import type { Semester, Subject } from '../types';
-import { exportGradesToExcel, exportGradesToPDF } from '../utils/exportHelpers';
+import { exportGradesToExcel, exportGradesToPDF, exportRadarChartToPNG } from '../utils/exportHelpers';
+import { calculateGradeSummary } from '../utils/gradeSummary';
 
 type Tab = 'table' | 'chart';
 
 export default function GradesPage() {
+  const navigate = useNavigate();
   const { studentId } = useParams();
   const [semesterId, setSemesterId] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -23,8 +25,23 @@ export default function GradesPage() {
   const [classIdFromStudent, setClassIdFromStudent] = useState<string>('');
   const [studentName, setStudentName] = useState<string>('');
   const [latestValues, setLatestValues] = useState<Record<string, string>>({});
+  const [compare, setCompare] = useState(false);
+  const chartRef = useRef<HTMLDivElement | null>(null);
   const { data: grades } = useGrades(studentId || '', semesterId || undefined);
+  const prevSemesterId = useMemo(() => {
+    if (!semesters.length || !semesterId) return undefined;
+    const currentIndex = semesters.findIndex((semester) => semester.id === semesterId);
+    return currentIndex >= 0 && currentIndex + 1 < semesters.length
+      ? semesters[currentIndex + 1].id
+      : undefined;
+  }, [semesters, semesterId]);
+  const { data: comparisonGrades } = useGrades(studentId || '', compare ? prevSemesterId : undefined);
   const upsert = useUpsertGrade(studentId || '', semesterId || undefined);
+  const gradeMap = useMemo(() => new Map((grades || []).map((grade) => [grade.subject_id, grade])), [grades]);
+  const summary = useMemo(
+    () => calculateGradeSummary(subjects, gradeMap, latestValues),
+    [subjects, gradeMap, latestValues],
+  );
 
   useEffect(() => {
     (async () => {
@@ -33,7 +50,8 @@ export default function GradesPage() {
       try {
         const [s, sems] = await Promise.all([getStudent(studentId), listSemesters()]);
         setSemesters(sems);
-        const sid = sems[0]?.id || '';
+        const lastSemesterId = safeGetLocal('lastSemesterId');
+        const sid = (lastSemesterId && sems.find((semester) => semester.id === lastSemesterId)?.id) || sems[0]?.id || '';
         setSemesterId((prev) => prev || sid);
         setStudentName(s.name);
         const subjs = await listSubjects(s.class_id);
@@ -61,7 +79,16 @@ export default function GradesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">성적 관리</h1>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="text-sm text-gray-600 hover:text-gray-900"
+          onClick={() => navigate('/students')}
+        >
+          ← 목록
+        </button>
+        <h1 className="text-xl font-semibold">성적 관리</h1>
+      </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2 items-center">
@@ -69,7 +96,10 @@ export default function GradesPage() {
           <select
             className="border p-1"
             value={semesterId}
-            onChange={(e) => setSemesterId(e.target.value)}
+            onChange={(e) => {
+              setSemesterId(e.target.value);
+              safeSetLocal('lastSemesterId', e.target.value);
+            }}
           >
             {semesters.map((sm) => (
               <option key={sm.id} value={sm.id}>{`${sm.year}년 ${sm.term}학기`}</option>
@@ -102,6 +132,12 @@ export default function GradesPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <OverviewCard title="총점" value={summary.total != null ? summary.total.toFixed(1) : '-'} />
+        <OverviewCard title="평균" value={summary.average != null ? summary.average.toFixed(1) : '-'} />
+        <OverviewCard title="입력 과목 수" value={summary.filledCount} />
+      </div>
+
       <div className="flex gap-2">
         <button
           onClick={() => setTab('table')}
@@ -127,15 +163,45 @@ export default function GradesPage() {
           onValuesChange={setLatestValues}
         />
       ) : (
-        <GradeRadarChart
-          subjects={subjects}
-          grades={grades || []}
-          overrideScores={Object.fromEntries(
-            Object.entries(latestValues)
-              .map(([sid, v]) => [sid, v === '' ? undefined : Number(v)])
-              .filter(([, n]) => typeof n === 'number' && !Number.isNaN(n as number) && (n as number) >= 0 && (n as number) <= 100) as [string, number][]
-          )}
-        />
+        <div className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={compare}
+                onChange={(e) => setCompare(e.target.checked)}
+                disabled={!prevSemesterId}
+              />
+              이전 학기와 비교
+            </label>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-1 rounded text-sm border"
+                onClick={async () => await exportRadarChartToPNG(chartRef.current, studentName || '학생')}
+              >
+                PNG로 내보내기
+              </button>
+              <button
+                className="px-3 py-1 rounded text-sm border"
+                onClick={async () => await exportGradesToPDF(subjects, grades || [], studentName || '학생')}
+              >
+                PDF로 내보내기
+              </button>
+            </div>
+          </div>
+          <div ref={chartRef} className="rounded border bg-white p-3">
+            <GradeRadarChart
+              subjects={subjects}
+              grades={grades || []}
+              overrideScores={Object.fromEntries(
+                Object.entries(latestValues)
+                  .map(([sid, v]) => [sid, v === '' ? undefined : Number(v)])
+                  .filter(([, n]) => typeof n === 'number' && !Number.isNaN(n as number) && (n as number) >= 0 && (n as number) <= 100) as [string, number][]
+              )}
+              comparisonGrades={compare ? comparisonGrades || [] : undefined}
+            />
+          </div>
+        </div>
       )}
       {showGradeUpload && classIdFromStudent && semesterId && (
         <GradeExcelUploadModal
@@ -146,4 +212,29 @@ export default function GradesPage() {
       )}
     </div>
   );
+}
+
+function OverviewCard({ title, value }: { title: string; value: string | number }) {
+  return (
+    <div className="rounded border p-3">
+      <div className="text-sm text-gray-600">{title}</div>
+      <div className="mt-1 text-2xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function safeGetLocal(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetLocal(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore storage errors
+  }
 }

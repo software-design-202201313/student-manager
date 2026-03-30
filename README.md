@@ -12,7 +12,8 @@
 docker compose up --build
 ```
 
-- 접속: FE `http://localhost:5173`, BE `http://localhost:8000`, Swagger `http://localhost:8000/docs`
+- 접속: FE `http://localhost:5173`, BE `http://localhost:18000`, Swagger `http://localhost:18000/docs`
+- 다른 포트를 쓰고 싶다면 `BACKEND_PORT=8000 docker compose up --build`처럼 원하는 값으로 덮어쓸 수 있습니다.
 - 기본 계정: `teacher@example.com` / `password123`
  - 최초 실행 시 Alembic가 자동으로 초기 마이그레이션을 생성/적용합니다(`alembic/versions`가 비어있는 경우).
 
@@ -27,7 +28,7 @@ docker compose up --build
 # Backend (Docker)
 cd backend
 docker build -t student-manager-backend .
-docker run --rm -p 8000:8000 \
+docker run --rm -p 18000:8000 \
   -v $(pwd)/test.db:/app/test.db \
   -e ALLOWED_ORIGINS='["http://localhost:5173"]' \
   student-manager-backend
@@ -43,7 +44,7 @@ npm run dev
 Postgres 사용 시(선택):
 
 ```bash
-docker run --rm -p 8000:8000 \
+docker run --rm -p 18000:8000 \
   -e DATABASE_URL='postgresql+asyncpg://user:pass@host:5432/student_manager' \
   -e RUN_CREATE_ALL=0 \
   -e ALLOWED_ORIGINS='["http://localhost:5173"]' \

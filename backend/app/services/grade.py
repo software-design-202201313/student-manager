@@ -14,6 +14,63 @@ from app.models.subject import Subject
 from app.utils.grade_calculator import calculate_grade
 
 
+def _raise_forbidden() -> None:
+    raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+
+
+async def _get_owned_student(db: AsyncSession, *, student_id: uuid.UUID, teacher_id: uuid.UUID) -> Student:
+    result = await db.execute(
+        select(Student, Class).join(Class, Student.class_id == Class.id).where(Student.id == student_id)
+    )
+    row = result.first()
+    if row is None:
+        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
+
+    student, cls = row
+    if cls.teacher_id != teacher_id:
+        _raise_forbidden()
+    return student
+
+
+async def _get_subject_for_student_class(
+    db: AsyncSession,
+    *,
+    subject_id: uuid.UUID,
+    student_class_id: uuid.UUID,
+) -> Subject:
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalar_one_or_none()
+    if subject is None:
+        raise AppException(404, "Subject not found", "SUBJECT_NOT_FOUND")
+    if subject.class_id != student_class_id:
+        raise AppException(400, "Subject does not belong to student's class", "SUBJECT_CLASS_MISMATCH")
+    return subject
+
+
+async def _get_owned_grade(db: AsyncSession, *, grade_id: uuid.UUID, teacher_id: uuid.UUID) -> Grade:
+    result = await db.execute(
+        select(Grade, Class)
+        .join(Student, Grade.student_id == Student.id)
+        .join(Class, Student.class_id == Class.id)
+        .where(Grade.id == grade_id)
+    )
+    row = result.first()
+    if row is None:
+        raise AppException(404, "Grade not found", "GRADE_NOT_FOUND")
+
+    grade, cls = row
+    if cls.teacher_id != teacher_id:
+        _raise_forbidden()
+    return grade
+
+
+def _student_grades_stmt(student_id: uuid.UUID, semester_id: uuid.UUID | None):
+    stmt = select(Grade).where(Grade.student_id == student_id)
+    if semester_id is not None:
+        stmt = stmt.where(Grade.semester_id == semester_id)
+    return stmt
+
+
 async def create_grade(
     db: AsyncSession,
     *,
@@ -24,24 +81,8 @@ async def create_grade(
     created_by: uuid.UUID,
     teacher_id: uuid.UUID,
 ) -> Grade:
-    # Verify student belongs to a class owned by teacher
-    result = await db.execute(
-        select(Student, Class).join(Class, Student.class_id == Class.id).where(Student.id == student_id)
-    )
-    row = result.first()
-    if row is None:
-        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
-    student, cls = row
-    if cls.teacher_id != teacher_id:
-        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
-
-    # Verify subject exists and is for the same class
-    result = await db.execute(select(Subject).where(Subject.id == subject_id))
-    subject = result.scalar_one_or_none()
-    if subject is None:
-        raise AppException(404, "Subject not found", "SUBJECT_NOT_FOUND")
-    if subject.class_id != student.class_id:
-        raise AppException(400, "Subject does not belong to student's class", "SUBJECT_CLASS_MISMATCH")
+    student = await _get_owned_student(db, student_id=student_id, teacher_id=teacher_id)
+    await _get_subject_for_student_class(db, subject_id=subject_id, student_class_id=student.class_id)
     grade_rank = calculate_grade(float(score)) if score is not None else None
     grade = Grade(
         student_id=student_id,
@@ -68,19 +109,7 @@ async def update_grade(
     score: Decimal,
     teacher_id: uuid.UUID,
 ) -> Grade:
-    # Verify grade exists and teacher owns the student's class
-    result = await db.execute(
-        select(Grade, Student, Class)
-        .join(Student, Grade.student_id == Student.id)
-        .join(Class, Student.class_id == Class.id)
-        .where(Grade.id == grade_id)
-    )
-    row = result.first()
-    if row is None:
-        raise AppException(404, "Grade not found", "GRADE_NOT_FOUND")
-    grade, student, cls = row
-    if cls.teacher_id != teacher_id:
-        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+    grade = await _get_owned_grade(db, grade_id=grade_id, teacher_id=teacher_id)
     grade.score = score
     grade.grade_rank = calculate_grade(float(score))
     await db.commit()
@@ -95,20 +124,9 @@ async def list_grades(
     semester_id: uuid.UUID | None = None,
     teacher_id: uuid.UUID,
 ) -> List[Grade]:
-    # Verify teacher owns the student's class
-    result = await db.execute(
-        select(Student, Class).join(Class, Student.class_id == Class.id).where(Student.id == student_id)
-    )
-    row = result.first()
-    if row is None:
-        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
-    student, cls = row
-    if cls.teacher_id != teacher_id:
-        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+    await _get_owned_student(db, student_id=student_id, teacher_id=teacher_id)
 
-    stmt = select(Grade).where(Grade.student_id == student_id)
-    if semester_id is not None:
-        stmt = stmt.where(Grade.semester_id == semester_id)
+    stmt = _student_grades_stmt(student_id, semester_id)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -120,16 +138,7 @@ async def get_grade_summary(
     semester_id: uuid.UUID | None = None,
     teacher_id: uuid.UUID,
 ):
-    # Verify teacher owns the student's class
-    result = await db.execute(
-        select(Student, Class).join(Class, Student.class_id == Class.id).where(Student.id == student_id)
-    )
-    row = result.first()
-    if row is None:
-        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
-    _student, cls = row
-    if cls.teacher_id != teacher_id:
-        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+    await _get_owned_student(db, student_id=student_id, teacher_id=teacher_id)
 
     # Aggregate (ignore NULL scores)
     agg_stmt = select(
@@ -144,9 +153,7 @@ async def get_grade_summary(
     total, average, count = agg_result.one_or_none() or (None, None, 0)
 
     # List grades for the same scope
-    stmt = select(Grade).where(Grade.student_id == student_id)
-    if semester_id is not None:
-        stmt = stmt.where(Grade.semester_id == semester_id)
+    stmt = _student_grades_stmt(student_id, semester_id)
     rows_result = await db.execute(stmt)
     grades = rows_result.scalars().all()
 

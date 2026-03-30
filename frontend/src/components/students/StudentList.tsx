@@ -1,11 +1,12 @@
-import type { StudentSummary, SpecialNote, Attendance as AttendanceType } from '../../types';
-import { useState } from 'react';
+import type { StudentSummary, SpecialNote, Attendance as AttendanceType, GradeItem, Subject, Semester } from '../../types';
 import { useStudent } from '../../hooks/useStudent';
+import { useGrades } from '../../hooks/useGrades';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listAttendance, listSpecialNotes, createAttendance, updateAttendance } from '../../api/students';
+import { listSubjects } from '../../api/classes';
+import { listSemesters } from '../../api/semesters';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import StudentGradeModal from './StudentGradeModal';
 
 function formatDateYYYYMMDD(d: Date) {
   const y = d.getFullYear();
@@ -36,30 +37,45 @@ function genderLabel(g?: string | null) {
   return g;
 }
 
-function attendanceLabel(status?: AttendanceType['status']) {
-  switch (status) {
-    case 'present':
-      return '출석';
-    case 'absent':
-      return '결석';
-    case 'late':
-      return '지각';
-    case 'early_leave':
-      return '조퇴';
-    default:
-      return '-';
+function selectDisplaySemesterId(semesters: Semester[]) {
+  const lastSemesterId = safeGetLocal('lastSemesterId');
+  if (lastSemesterId && semesters.some((semester) => semester.id === lastSemesterId)) {
+    return lastSemesterId;
   }
+  return semesters[0]?.id;
 }
 
-function StudentRow({ s, onOpenGrade }: { s: StudentSummary; onOpenGrade: () => void }) {
+function formatGradePreview(grades: GradeItem[], orderedSubjectIds: string[]) {
+  const rankedGrades = grades.filter((grade) => grade.grade_rank != null);
+  if (rankedGrades.length === 0) return '';
+
+  const orderedRanks = orderedSubjectIds.length > 0
+    ? orderedSubjectIds
+        .map((subjectId) => rankedGrades.find((grade) => grade.subject_id === subjectId)?.grade_rank)
+        .filter((gradeRank): gradeRank is number => gradeRank != null)
+    : rankedGrades.map((grade) => grade.grade_rank).filter((gradeRank): gradeRank is number => gradeRank != null);
+
+  if (orderedRanks.length === 0) return '';
+  return `${orderedRanks.join('/')}/`;
+}
+
+function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSummary; displaySemesterId?: string; orderedSubjectIds: string[] }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: detail } = useStudent(s.id);
+  const { data: grades } = useGrades(s.id, displaySemesterId, { enabled: !!displaySemesterId });
   const { data: attendance } = useAttendanceToday(s.id);
   const { data: notes } = useLatestSpecialNote(s.id);
   const latestNote = (notes || [])
     .slice()
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+  const gradePreview = formatGradePreview(grades || [], orderedSubjectIds);
+  const gradeAverage = (() => {
+    const scored = (grades || []).filter((g) => g.score != null);
+    if (scored.length === 0) return null;
+    const sum = scored.reduce((acc, g) => acc + Number(g.score), 0);
+    return Math.round((sum / scored.length) * 10) / 10;
+  })();
 
   const todayStr = formatDateYYYYMMDD(new Date());
   const current = attendance && attendance[0];
@@ -129,11 +145,14 @@ function StudentRow({ s, onOpenGrade }: { s: StudentSummary; onOpenGrade: () => 
       <td className="p-2 border text-center">
         <button
           type="button"
-          className="px-2 py-1 text-xs border rounded"
-          onClick={onOpenGrade}
+          className={gradePreview ? 'text-blue-600 hover:underline font-medium' : 'px-2 py-1 text-xs border rounded'}
+          onClick={() => navigate(`/grades/${s.id}`)}
         >
-          성적 입력
+          {gradePreview || '성적 입력'}
         </button>
+      </td>
+      <td className="p-2 border text-center">
+        {gradeAverage != null ? gradeAverage.toFixed(1) : <span className="text-gray-400">-</span>}
       </td>
     </tr>
   );
@@ -141,8 +160,18 @@ function StudentRow({ s, onOpenGrade }: { s: StudentSummary; onOpenGrade: () => 
 
 export default function StudentList({ students }: { students: StudentSummary[] }) {
   const sorted = students.slice().sort((a, b) => a.student_number - b.student_number);
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const current = openIndex != null ? sorted[openIndex] : null;
+  const classId = sorted[0]?.class_id;
+  const { data: semesters = [] } = useQuery<Semester[]>({
+    queryKey: ['semesters'],
+    queryFn: listSemesters,
+  });
+  const { data: subjects = [] } = useQuery<Subject[]>({
+    queryKey: ['class-subjects', classId],
+    queryFn: () => listSubjects(classId || ''),
+    enabled: !!classId,
+  });
+  const displaySemesterId = selectDisplaySemesterId(semesters);
+  const orderedSubjectIds = subjects.map((subject) => subject.id);
 
   return (
     <>
@@ -155,24 +184,23 @@ export default function StudentList({ students }: { students: StudentSummary[] }
             <th className="p-2 border">오늘 출결</th>
             <th className="p-2 border">특이사항</th>
             <th className="p-2 border">성적</th>
+            <th className="p-2 border">평균</th>
           </tr>
         </thead>
         <tbody>
-          {sorted.map((s, idx) => (
-            <StudentRow key={s.id} s={s} onOpenGrade={() => setOpenIndex(idx)} />
+          {sorted.map((s) => (
+            <StudentRow key={s.id} s={s} displaySemesterId={displaySemesterId} orderedSubjectIds={orderedSubjectIds} />
           ))}
         </tbody>
       </table>
-
-      {current && (
-        <StudentGradeModal
-          studentId={current.id}
-          studentName={current.name}
-          onClose={() => setOpenIndex(null)}
-          onPrev={openIndex && openIndex > 0 ? () => setOpenIndex((i) => (i != null && i > 0 ? i - 1 : i)) : undefined}
-          onNext={openIndex != null && openIndex < sorted.length - 1 ? () => setOpenIndex((i) => (i != null ? i + 1 : i)) : undefined}
-        />
-      )}
     </>
   );
+}
+
+function safeGetLocal(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }

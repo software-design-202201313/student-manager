@@ -1,15 +1,16 @@
 import { useAuthStore } from '../stores/authStore';
 import { Link } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listSemesters } from '../api/semesters';
 import { getMyGradeSummary, getMyStudents, listMyFeedbacks, listMyGrades, listMySubjects, getMyAttendanceSummary } from '../api/my';
 import type { Feedback, GradeItem, Semester, StudentSummary, Subject } from '../types';
 import GradeRadarChart from '../components/grades/RadarChart';
-import { exportGradesToPDF } from '../utils/exportHelpers';
+import { exportGradesToPDF, exportRadarChartToPNG } from '../utils/exportHelpers';
 
 export default function ParentHomePage() {
   const user = useAuthStore((s) => s.user);
+  const chartRef = useRef<HTMLDivElement | null>(null);
 
   const { data: children } = useQuery({ queryKey: ['my', 'students'], queryFn: getMyStudents });
   const [selectedChildId, setSelectedChildId] = useState<string>('');
@@ -136,8 +137,19 @@ export default function ParentHomePage() {
             <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} /> 이전 학기와 비교
           </label>
         </div>
-        <GradeRadarChart subjects={subjects ?? []} grades={grades ?? []} comparisonGrades={compare ? (prevGrades ?? []) : undefined} />
-        <div className="text-right mt-2">
+        <div ref={chartRef}>
+          <GradeRadarChart subjects={subjects ?? []} grades={grades ?? []} comparisonGrades={compare ? (prevGrades ?? []) : undefined} />
+        </div>
+        <div className="mt-2 flex justify-end gap-2">
+          <button
+            className="px-3 py-1 text-sm border rounded"
+            onClick={async () => {
+              const studentName = (children ?? []).find((c) => c.id === selectedChildId)?.name || '학생';
+              await exportRadarChartToPNG(chartRef.current, studentName);
+            }}
+          >
+            PNG로 내보내기
+          </button>
           <button
             className="px-3 py-1 text-sm border rounded"
             onClick={async () => {

@@ -47,6 +47,45 @@ export async function exportGradesToPDF(
   doc.save(`${safeName(studentName)}_성적.pdf`);
 }
 
+export async function exportRadarChartToPNG(
+  chartElement: HTMLElement | null,
+  studentName: string,
+) {
+  if (!chartElement) return;
+
+  const svg = chartElement.querySelector('svg');
+  if (!svg) return;
+
+  const serializer = new XMLSerializer();
+  const svgMarkup = serializer.serializeToString(svg);
+  const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  try {
+    const image = await loadImage(url);
+    const width = Math.max(chartElement.clientWidth || 640, 320);
+    const height = Math.max(chartElement.clientHeight || 320, 240);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    const pngUrl = canvas.toDataURL('image/png');
+    const anchor = document.createElement('a');
+    anchor.href = pngUrl;
+    anchor.download = `${safeName(studentName)}_레이더차트.png`;
+    anchor.click();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export async function exportStudentsToExcel(students: StudentSummary[], classLabel?: string) {
   const XLSX = await import('xlsx');
   const rows = students
@@ -60,4 +99,13 @@ export async function exportStudentsToExcel(students: StudentSummary[], classLab
     ? `${safeName(classLabel)}_학생목록.xlsx`
     : `학생목록.xlsx`;
   XLSX.writeFile(wb, filename);
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
 }

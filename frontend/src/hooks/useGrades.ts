@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createGrade, listGrades, updateGrade } from '../api/grades';
 import type { GradeItem } from '../types';
 
-export function useGrades(studentId: string, semesterId?: string) {
+export function useGrades(studentId: string, semesterId?: string, options?: { enabled?: boolean }) {
   return useQuery<GradeItem[]>({
     queryKey: ['grades', { studentId, semesterId }],
     queryFn: () => listGrades(studentId, semesterId),
-    enabled: !!studentId,
+    enabled: options?.enabled ?? !!studentId,
   });
 }
 
@@ -25,4 +25,3 @@ export function useUpsertGrade(studentId: string, semesterId?: string) {
     },
   });
 }
-

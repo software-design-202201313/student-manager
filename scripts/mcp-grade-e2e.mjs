@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Chrome DevTools MCP-based E2E: login -> students -> grades -> save -> chart
 // Prereqs:
-//  - Backend running at http://localhost:8000 (docker compose up)
+//  - Backend running at http://localhost:18000 (docker compose up)
 //  - Frontend running at http://localhost:5173 (npm run dev) OR built+preview
 //  - Chrome DevTools MCP installed (devDep in ./frontend)
 

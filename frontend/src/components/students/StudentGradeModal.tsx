@@ -5,7 +5,8 @@ import { listSubjects } from '../../api/classes';
 import { useGrades, useUpsertGrade } from '../../hooks/useGrades';
 import GradeTable from '../grades/GradeTable';
 import GradeExcelUploadModal from '../grades/GradeExcelUploadModal';
-import type { Semester, Subject, GradeItem, StudentDetail } from '../../types';
+import type { Semester, Subject, StudentDetail } from '../../types';
+import { calculateGradeSummary } from '../../utils/gradeSummary';
 
 type Props = {
   studentId: string;
@@ -54,7 +55,10 @@ export default function StudentGradeModal({ studentId, studentName, onClose, onP
 
   const gradeMap = useMemo(() => new Map((grades || []).map((g) => [g.subject_id, g])), [grades]);
 
-  const { total, average, filledCount } = useMemo(() => computeSummary(subjects, gradeMap, latestValues), [subjects, gradeMap, latestValues]);
+  const { total, average, filledCount } = useMemo(
+    () => calculateGradeSummary(subjects, gradeMap, latestValues),
+    [subjects, gradeMap, latestValues],
+  );
 
   const classId = student?.class_id || '';
 
@@ -106,7 +110,7 @@ export default function StudentGradeModal({ studentId, studentName, onClose, onP
           ) : (
             <GradeTable
               subjects={subjects}
-              grades={(grades || []) as GradeItem[]}
+              grades={grades || []}
               semesterId={semesterId}
               studentId={studentId}
               onUpsert={async ({ gradeId, subject_id, score }) => {
@@ -139,40 +143,9 @@ export default function StudentGradeModal({ studentId, studentName, onClose, onP
   );
 }
 
-function computeSummary(
-  subjects: Subject[],
-  gradeMap: Map<string, GradeItem>,
-  latestValues: Record<string, string>,
-) {
-  let sum = 0;
-  let count = 0;
-  for (const s of subjects) {
-    const raw = latestValues[s.id];
-    let val: number | null = null;
-    if (raw != null && raw !== '') {
-      const n = Number(raw);
-      if (!Number.isNaN(n) && n >= 0 && n <= 100) val = n;
-    } else {
-      const g = gradeMap.get(s.id);
-      if (g && typeof g.score === 'number') val = g.score as number;
-      if (g && g.score != null && typeof g.score !== 'number') val = Number(g.score);
-    }
-    if (val != null) {
-      sum += val;
-      count += 1;
-    }
-  }
-  return {
-    total: count > 0 ? Math.round(sum) : null,
-    average: count > 0 ? Math.round((sum / count) * 10) / 10 : null,
-    filledCount: count,
-  };
-}
-
 function safeGetLocal(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
 }
 function safeSetLocal(key: string, value: string) {
   try { localStorage.setItem(key, value); } catch { /* ignore */ }
 }
-
