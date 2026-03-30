@@ -62,6 +62,19 @@
 - Infra: added backend `Dockerfile` and `docker-compose.yml` (Postgres + backend + frontend dev); README Quick Start updated.
 - Build: simplified Vite config (no plugin) to allow TSX build in restricted environments.
 
+## 2026-03-30 Update
+
+- Grades UX: added live total/average summary cards on `GradesPage` so teacher edits immediately reflect PRD MVP expectations.
+- Validation: added inline out-of-range score errors (`0~100`) in `GradeTable` while preserving explicit save flow.
+- Radar chart: added teacher-side previous-semester compare mode on `GradesPage`.
+- Export: added radar chart PNG export helper and wired PNG export on teacher/student/parent chart views.
+- Verification prep: added focused frontend tests for grade validation, live summary, compare mode, and export wiring.
+- Counseling: expanded teacher-side shared counseling search with student/teacher/date filters and related notification deep links.
+- Notifications: wired real side-effects for grades, feedbacks, and counseling plus teacher preference controls and related-screen routing.
+- Students: added browser-verified CSV import/export flow for student bulk management.
+- PRD verification: added end-to-end `frontend/e2e/prd-user-stories.spec.ts` and validated all User Stories against the live app.
+- US-005: removed student/parent dashboard feedback 5-item cap, added role-based route protection, added `/my/*` backend regression tests, and added mobile Playwright verification for student/parent read-only views.
+
 ---
 
 ## Remaining Tasks
