@@ -26,10 +26,34 @@ export interface StudentSummary {
 }
 
 export interface StudentDetail extends StudentSummary {
+  email: string;
+  account_status: string;
   birth_date: string | null;
   gender: string | null;
   phone: string | null;
   address: string | null;
+}
+
+export interface OnboardingAccount {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  account_status: string;
+  invite_url?: string | null;
+  invite_expires_at?: string | null;
+}
+
+export interface StudentOnboardingResult {
+  id: string;
+  user_id: string;
+  class_id: string;
+  student_number: number;
+  name: string;
+  email: string;
+  account_status: string;
+  invite_url?: string | null;
+  invite_expires_at?: string | null;
 }
 
 export interface Attendance {

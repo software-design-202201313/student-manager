@@ -1,11 +1,12 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class StudentDirectCreate(BaseModel):
-    """교사가 폼/엑셀에서 직접 학생을 등록할 때 사용. 이메일 입력 불필요."""
+    """교사가 학생 계정을 초대 기반으로 등록할 때 사용."""
+    email: EmailStr
     name: str = Field(min_length=1, max_length=100)
     student_number: int = Field(ge=1, le=100)
     birth_date: date | None = None
@@ -27,7 +28,9 @@ class StudentDetail(BaseModel):
     id: str
     user_id: str
     class_id: str
+    email: str
     name: str
+    account_status: str = "pending_invite"
     student_number: int
     birth_date: date | None
     gender: Literal["male", "female"] | None

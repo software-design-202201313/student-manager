@@ -7,7 +7,9 @@ export default function StudentDetail({ student, attendance, notes }: { student:
         <h2 className="font-semibold mb-2">기본 정보</h2>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div><span className="text-gray-600">이름: </span>{student.name}</div>
+          <div><span className="text-gray-600">이메일: </span>{student.email}</div>
           <div><span className="text-gray-600">번호: </span>{student.student_number}</div>
+          <div><span className="text-gray-600">계정 상태: </span>{student.account_status === 'active' ? '활성' : '초대 대기'}</div>
           <div><span className="text-gray-600">생년월일: </span>{student.birth_date ?? '-'}</div>
           {student.gender && (
             <div><span className="text-gray-600">성별: </span>{student.gender === 'male' ? '남' : '여'}</div>

@@ -1,4 +1,5 @@
 import type { Counseling } from '../../types';
+import { exportCounselingReportToPDF } from '../../utils/exportHelpers';
 
 export default function CounselingDetailModal({
   counseling,
@@ -43,7 +44,13 @@ export default function CounselingDetailModal({
           )}
         </div>
         <div className="flex justify-between mt-3">
-          <div />
+          <button
+            type="button"
+            className="px-3 py-1 text-sm border rounded"
+            onClick={() => exportCounselingReportToPDF(counseling, studentName)}
+          >
+            PDF 내보내기
+          </button>
           <div className="flex gap-2">
             <button
               className="px-3 py-1 text-sm border rounded text-indigo-600 border-indigo-300 disabled:opacity-50"

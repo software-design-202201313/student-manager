@@ -46,6 +46,7 @@ export async function createSpecialNote(studentId: string, body: { content: stri
 export async function createStudent(
   classId: string,
   body: {
+    email: string;
     name: string;
     student_number: number;
     birth_date?: string;

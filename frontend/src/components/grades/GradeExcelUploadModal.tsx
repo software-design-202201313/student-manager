@@ -5,7 +5,7 @@ import { getGradeTemplateUrl } from '../../api/imports';
 export default function GradeExcelUploadModal({ classId, semesterId, onClose }: { classId: string; semesterId: string; onClose: () => void }) {
   const upload = useUploadGrades();
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<{ created: number; skipped: number; errors: any[] } | null>(null);
+  const [result, setResult] = useState<{ created: number; skipped: number; updated: number; errors: any[] } | null>(null);
 
   const handleUpload = async () => {
     if (!file) return;
@@ -32,7 +32,7 @@ export default function GradeExcelUploadModal({ classId, semesterId, onClose }: 
         />
         {result && (
           <div className="mb-3 text-sm">
-            <div>등록: {result.created} / 건너뜀: {result.skipped}</div>
+            <div>등록: {result.created} / 수정: {result.updated} / 건너뜀: {result.skipped}</div>
             {result.errors.length > 0 && (
               <div className="mt-2 max-h-40 overflow-auto border rounded p-2 text-red-600">
                 {result.errors.map((e, i) => (
@@ -56,4 +56,3 @@ export default function GradeExcelUploadModal({ classId, semesterId, onClose }: 
     </div>
   );
 }
-

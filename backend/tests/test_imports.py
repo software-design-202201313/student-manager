@@ -1,5 +1,3 @@
-import io
-
 import pytest
 
 from tests.conftest import async_session_test
@@ -15,9 +13,9 @@ async def test_import_students_csv(auth_client_teacher, seed_teacher):
         await session.commit()
         await session.refresh(cls)
 
-    csv_content = f"email,name,class_id,student_number\nimp1@test.com,Imp One,{cls.id.hex},1\nimp1@test.com,Imp Dup,{cls.id.hex},2\n"
+    csv_content = "email,name,student_number\nimp1@test.com,Imp One,1\nimp1@test.com,Imp Dup,2\n"
     files = {"file": ("students.csv", csv_content.encode("utf-8"), "text/csv")}
-    res = await auth_client_teacher.post("/api/v1/import/students", files=files)
+    res = await auth_client_teacher.post(f"/api/v1/import/students?class_id={cls.id}", files=files)
     assert res.status_code == 200
     body = res.json()
     assert body["created"] == 1
@@ -41,17 +39,18 @@ async def test_import_grades_csv(auth_client_teacher, seed_teacher):
         await session.refresh(sem)
         await session.refresh(subj)
 
-    s_res = await auth_client_teacher.post(
+    await auth_client_teacher.post(
         "/api/v1/users/students",
         json={"email": "gi@test.com", "name": "GI", "class_id": cls.id.hex, "student_number": 1},
     )
-    student_id = s_res.json()["id"]
-
-    csv_content = f"student_id,subject_id,semester_id,score\n{student_id},{subj.id.hex},{sem.id.hex},88\n"
+    csv_content = "student_number,subject_name,score\n1,History,88\n"
     files = {"file": ("grades.csv", csv_content.encode("utf-8"), "text/csv")}
-    res = await auth_client_teacher.post("/api/v1/import/grades", files=files)
+    res = await auth_client_teacher.post(
+        f"/api/v1/import/grades?class_id={cls.id}&semester_id={sem.id}",
+        files=files,
+    )
     assert res.status_code == 200
     body = res.json()
     assert body["created"] == 1
+    assert body["updated"] == 0
     assert len(body["errors"]) == 0
-

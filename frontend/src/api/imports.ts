@@ -3,7 +3,7 @@ import apiClient from './client';
 export async function uploadStudentsXlsx(classId: string, file: Blob) {
   const form = new FormData();
   form.append('file', file);
-  const { data } = await apiClient.post<{ created: number; skipped: number; errors: any[] }>(
+  const { data } = await apiClient.post<{ created: number; skipped: number; updated: number; errors: any[] }>(
     '/import/students/xlsx',
     form,
     {
@@ -17,11 +17,25 @@ export async function uploadStudentsXlsx(classId: string, file: Blob) {
 export async function uploadGradesXlsx(classId: string, semesterId: string, file: Blob) {
   const form = new FormData();
   form.append('file', file);
-  const { data } = await apiClient.post<{ created: number; skipped: number; errors: any[] }>(
+  const { data } = await apiClient.post<{ created: number; skipped: number; updated: number; errors: any[] }>(
     '/import/grades/xlsx',
     form,
     {
       params: { class_id: classId, semester_id: semesterId },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    },
+  );
+  return data;
+}
+
+export async function uploadStudentsCsv(classId: string, file: Blob) {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await apiClient.post<{ created: number; skipped: number; updated: number; errors: any[] }>(
+    '/import/students',
+    form,
+    {
+      params: { class_id: classId },
       headers: { 'Content-Type': 'multipart/form-data' },
     },
   );

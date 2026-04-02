@@ -42,6 +42,23 @@ export default function GradesPage() {
     () => calculateGradeSummary(subjects, gradeMap, latestValues),
     [subjects, gradeMap, latestValues],
   );
+  const analysis = useMemo(() => {
+    const scored = subjects
+      .map((subject) => {
+        const typed = latestValues[subject.id];
+        const liveScore = typed === undefined || typed === '' ? undefined : Number(typed);
+        const score = liveScore != null && !Number.isNaN(liveScore) ? liveScore : gradeMap.get(subject.id)?.score ?? null;
+        return { subject, score: score == null ? null : Number(score) };
+      })
+      .filter((entry) => entry.score != null) as Array<{ subject: Subject; score: number }>;
+    if (scored.length === 0) return null;
+
+    const top = [...scored].sort((left, right) => right.score - left.score)[0];
+    const bottom = [...scored].sort((left, right) => left.score - right.score)[0];
+    const strengths = scored.filter((entry) => entry.score >= 90).map((entry) => entry.subject.name);
+    const attention = scored.filter((entry) => entry.score < 70).map((entry) => entry.subject.name);
+    return { top, bottom, strengths, attention };
+  }, [subjects, gradeMap, latestValues]);
 
   useEffect(() => {
     (async () => {
@@ -136,6 +153,13 @@ export default function GradesPage() {
         <OverviewCard title="총점" value={summary.total != null ? summary.total.toFixed(1) : '-'} />
         <OverviewCard title="평균" value={summary.average != null ? summary.average.toFixed(1) : '-'} />
         <OverviewCard title="입력 과목 수" value={summary.filledCount} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <OverviewCard title="최고 과목" value={analysis ? `${analysis.top.subject.name} ${analysis.top.score.toFixed(0)}` : '-'} />
+        <OverviewCard title="보완 과목" value={analysis ? `${analysis.bottom.subject.name} ${analysis.bottom.score.toFixed(0)}` : '-'} />
+        <OverviewCard title="우수 과목" value={analysis?.strengths.length ? analysis.strengths.join(', ') : '-'} />
+        <OverviewCard title="집중 관리" value={analysis?.attention.length ? analysis.attention.join(', ') : '-'} />
       </div>
 
       <div className="flex gap-2">

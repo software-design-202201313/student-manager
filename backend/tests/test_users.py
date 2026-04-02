@@ -27,6 +27,8 @@ async def test_teacher_creates_student(auth_client_teacher: AsyncClient, seed_te
     assert res.status_code == 201
     body = res.json()
     assert body["name"] == "학생1"
+    assert body["account_status"] == "pending_invite"
+    assert "/signup?token=" in body["invite_url"]
 
 
 @pytest.mark.asyncio
@@ -83,3 +85,71 @@ async def test_teacher_cannot_create_student_in_other_teachers_class(
         },
     )
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_teacher_creates_parent_invitation(auth_client_teacher: AsyncClient, seed_teacher: User, seed_school: School):
+    async with async_session_test() as session:
+        cls = Class(school_id=seed_teacher.school_id, name="1-5", grade=1, year=2026, teacher_id=seed_teacher.id)
+        session.add(cls)
+        await session.commit()
+        await session.refresh(cls)
+
+    student_res = await auth_client_teacher.post(
+        "/api/v1/users/students",
+        json={
+            "email": "student-parent@test.com",
+            "name": "학생부모",
+            "class_id": cls.id.hex,
+            "student_number": 4,
+        },
+    )
+    student_id = student_res.json()["id"]
+
+    res = await auth_client_teacher.post(
+        "/api/v1/users/parents",
+        json={"email": "parent@test.com", "name": "학부모1", "student_id": student_id},
+    )
+    assert res.status_code == 201
+    body = res.json()
+    assert body["role"] == "parent"
+    assert body["account_status"] == "pending_invite"
+    assert "/signup?token=" in body["invite_url"]
+
+
+@pytest.mark.asyncio
+async def test_invited_student_can_accept_signup(client: AsyncClient, auth_client_teacher: AsyncClient, seed_teacher: User):
+    async with async_session_test() as session:
+        cls = Class(school_id=seed_teacher.school_id, name="2-2", grade=2, year=2026, teacher_id=seed_teacher.id)
+        session.add(cls)
+        await session.commit()
+        await session.refresh(cls)
+
+    create_res = await auth_client_teacher.post(
+        "/api/v1/users/students",
+        json={
+            "email": "signup-student@test.com",
+            "name": "초대학생",
+            "class_id": cls.id.hex,
+            "student_number": 5,
+        },
+    )
+    invite_token = create_res.json()["invite_url"].split("token=")[1]
+
+    preview_res = await client.get(f"/api/v1/auth/invitations/{invite_token}")
+    assert preview_res.status_code == 200
+    assert preview_res.json()["role"] == "student"
+
+    accept_res = await client.post(
+        "/api/v1/auth/invitations/accept",
+        json={"token": invite_token, "password": "student-pass-123"},
+    )
+    assert accept_res.status_code == 200
+    assert accept_res.json()["role"] == "student"
+
+    me_res = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {accept_res.json()['access_token']}"},
+    )
+    assert me_res.status_code == 200
+    assert me_res.json()["email"] == "signup-student@test.com"

@@ -4,7 +4,7 @@ import { useUploadStudents } from '../../hooks/useImport';
 export default function ExcelUploadModal({ classId, onClose }: { classId: string; onClose: () => void }) {
   const upload = useUploadStudents();
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<{ created: number; skipped: number; errors: any[] } | null>(null);
+  const [result, setResult] = useState<{ created: number; skipped: number; updated: number; errors: any[] } | null>(null);
 
   const handleUpload = async () => {
     if (!file) return;
@@ -20,7 +20,7 @@ export default function ExcelUploadModal({ classId, onClose }: { classId: string
           <button onClick={onClose} className="text-gray-500">×</button>
         </div>
         <div className="text-sm text-gray-600 mb-2">
-          `name`, `student_number`, `birth_date`, `gender`, `phone`, `address` 헤더를 가진 CSV 파일을 업로드하세요.
+          `name`, `email`, `student_number`, `birth_date` 헤더를 가진 CSV 파일을 업로드하세요.
         </div>
         <input
           type="file"

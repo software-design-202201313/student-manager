@@ -129,7 +129,7 @@ async def my_feedbacks(
 
     # Build visibility condition
     vis = Feedback.is_visible_to_student if current_user.role == "student" else Feedback.is_visible_to_parent
-    stmt = select(Feedback).where(Feedback.student_id == sid, vis == True).order_by(Feedback.created_at.desc())
+    stmt = select(Feedback).where(Feedback.student_id == sid, vis).order_by(Feedback.created_at.desc())
     if limit and limit > 0:
         stmt = stmt.limit(limit)
     rows = (await db.execute(stmt)).scalars().all()

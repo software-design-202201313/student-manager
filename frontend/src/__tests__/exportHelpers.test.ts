@@ -22,6 +22,7 @@ vi.mock('jspdf', () => {
   class MockJsPDF {
     setFontSize() {}
     text() {}
+    splitTextToSize(text: string) { return [text]; }
     save(name: string) {
       saveSpy(name);
     }
