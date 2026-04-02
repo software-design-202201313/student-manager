@@ -44,7 +44,10 @@ async def app_exception_handler(request: Request, exc: AppException):
 
 @app.exception_handler(RateLimitExceeded)
 async def ratelimit_handler(request: Request, exc: RateLimitExceeded):
-    return JSONResponse(status_code=429, content={"detail": "Too Many Requests", "code": "RATE_LIMIT_EXCEEDED"})
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "너무 많은 로그인 시도입니다.", "code": "AUTH_RATE_LIMITED"},
+    )
 
 
 @app.get("/health")

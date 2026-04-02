@@ -1,10 +1,8 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../../stores/authStore';
-import apiClient from '../../api/client';
-import { getMe } from '../../api/auth';
+import { bootstrapSession, getMe } from '../../api/auth';
 
 function getDefaultRoute(role?: string | null) {
   if (role === 'student') return '/student';
@@ -33,14 +31,11 @@ export default function ProtectedRoute({
     const bootstrap = async () => {
       try {
         if (!token) {
-          // Use a bare axios call (no interceptors) to avoid recursive refresh handling
-          const { data } = await axios.post<{ access_token: string }>(
-            `${apiClient.defaults.baseURL}/auth/refresh`,
-            {},
-            { withCredentials: true },
-          );
+          const { token: nextToken, user: nextUser } = await bootstrapSession();
           if (cancelled) return;
-          setToken(data.access_token);
+          setToken(nextToken);
+          setUser(nextUser);
+          return;
         }
         // Fetch current user regardless (token may be already present)
         const me = await getMe();

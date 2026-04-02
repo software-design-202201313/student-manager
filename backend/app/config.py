@@ -6,8 +6,12 @@ class Settings(BaseSettings):
     test_database_url: str = "sqlite+aiosqlite:///./test.db"
     secret_key: str = "change-me-in-production"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 120
+    access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
+    invite_token_expire_hours: int = 72
+    password_reset_token_expire_minutes: int = 60
+    app_base_url: str = "http://localhost:5173"
+    auth_link_delivery: str = "stub"
     # Allow both localhost and 127.0.0.1 for Vite dev server to avoid CORS
     # preflight failures (DELETE/PUT) when the dev host differs.
     allowed_origins: list[str] = [
@@ -15,8 +19,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
     # Cookie settings for refresh token
+    refresh_cookie_name: str = "refresh_token"
     cookie_secure: bool = False
-    cookie_samesite: str = "lax"  # one of: "lax", "strict", "none"
+    cookie_samesite: str = "strict"  # one of: "lax", "strict", "none"
+    cookie_path: str = "/"
 
     model_config = {"env_file": ".env"}
 

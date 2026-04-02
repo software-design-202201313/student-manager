@@ -6,8 +6,6 @@ import { useAuthStore } from '../stores/authStore';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
-  const [role, setRole] = useState<'student' | 'parent' | 'teacher'>('student');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
@@ -41,26 +39,13 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // POST to /auth/login with email, password (role is UI-only per spec)
       const tok = await login(emailTrim, passwordTrim);
-
-      // Store token per remember selection
-      if (remember) {
-        try { localStorage.setItem('accessToken', tok.access_token); } catch {}
-      } else {
-        try { sessionStorage.setItem('accessToken', tok.access_token); } catch {}
-      }
       setAccessToken(tok.access_token);
-
-      // Fetch current user and store
       const me = await getMe();
       setUser(me);
-
-      // Redirect to root
       navigate('/');
     } catch (e: any) {
-      // 실패 시 고정 문구
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      setError(e?.response?.data?.detail || '이메일 또는 비밀번호가 올바르지 않습니다.');
     } finally {
       setLoading(false);
     }
@@ -80,27 +65,6 @@ export default function LoginPage() {
           </div>
         )}
         {error && <div className="text-red-600 text-sm" role="alert">{error}</div>}
-
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="역할 선택">
-          {([
-            { key: 'student', label: '학생' },
-            { key: 'parent', label: '학부모' },
-            { key: 'teacher', label: '교사' },
-          ] as const).map((opt) => (
-            <label key={opt.key} className={`border rounded p-2 text-center cursor-pointer select-none ${role === opt.key ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}>
-              <input
-                type="radio"
-                name="role"
-                className="sr-only"
-                value={opt.key}
-                checked={role === opt.key}
-                onChange={() => setRole(opt.key)}
-                aria-label={opt.label}
-              />
-              {opt.label}
-            </label>
-          ))}
-        </div>
 
         <div>
           <label htmlFor="email" className="block text-sm text-gray-700 mb-1">이메일</label>
@@ -135,14 +99,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-            />
-            로그인 상태 유지
-          </label>
+          <div className="text-sm text-gray-500">세션은 보안 쿠키로만 유지됩니다.</div>
           <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">비밀번호를 잊으셨나요?</Link>
         </div>
 
@@ -156,8 +113,8 @@ export default function LoginPage() {
         </button>
 
         <div className="text-center text-sm text-gray-600">
-          계정이 없으신가요?{' '}
-          <Link to="/signup" className="text-blue-600 hover:underline">회원가입</Link>
+          초대 링크가 있으신가요?{' '}
+          <Link to="/signup" className="text-blue-600 hover:underline">초대 수락</Link>
         </div>
       </form>
     </div>
