@@ -49,7 +49,7 @@ const listMyFeedbacksMock = vi.fn(async () => [
 ]);
 
 vi.mock('../../api/semesters', () => ({
-  listSemesters: (...args: any[]) => listSemestersMock(...args),
+  listSemesters: () => listSemestersMock(),
 }));
 
 vi.mock('../../api/my', () => ({
@@ -58,9 +58,9 @@ vi.mock('../../api/my', () => ({
     { id: 'sub1', class_id: 'class1', name: '국어' },
     { id: 'sub2', class_id: 'class1', name: '수학' },
   ]),
-  listMyGrades: (...args: any[]) => listMyGradesMock(...args),
-  getMyGradeSummary: (...args: any[]) => getMyGradeSummaryMock(...args),
-  listMyFeedbacks: (...args: any[]) => listMyFeedbacksMock(...args),
+  listMyGrades: (params?: { semester_id?: string }) => listMyGradesMock(params),
+  getMyGradeSummary: (params?: { semester_id?: string }) => getMyGradeSummaryMock(params),
+  listMyFeedbacks: () => listMyFeedbacksMock(),
   getMyAttendanceSummary: vi.fn(async () => ({
     present: 20,
     absent: 1,

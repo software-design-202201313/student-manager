@@ -15,6 +15,7 @@ COPY app /app/app
 COPY alembic /app/alembic
 COPY alembic.ini /app/alembic.ini
 COPY seed.py /app/seed.py
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 # Default to sqlite for local container runs
 ENV DATABASE_URL=sqlite+aiosqlite:///./test.db \
@@ -23,15 +24,13 @@ ENV DATABASE_URL=sqlite+aiosqlite:///./test.db \
     ALGORITHM=HS256 \
     ACCESS_TOKEN_EXPIRE_MINUTES=60 \
     REFRESH_TOKEN_EXPIRE_DAYS=7 \
+    INVITE_TOKEN_EXPIRE_HOURS=72 \
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES=60 \
+    APP_BASE_URL=http://localhost:5173 \
+    AUTH_LINK_DELIVERY=stub \
+    RUN_SEED=0 \
     ALLOWED_ORIGINS="[\"http://localhost:5173\"]"
 
 EXPOSE 8000
 
-# Create tables and seed a demo teacher if missing
-RUN python - <<'PY'
-import asyncio
-from seed import seed
-asyncio.run(seed())
-PY
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/docker-entrypoint.sh"]

@@ -28,21 +28,24 @@ services:
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
       REFRESH_TOKEN_EXPIRE_DAYS: 7
+      INVITE_TOKEN_EXPIRE_HOURS: 72
+      PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: 60
+      APP_BASE_URL: http://localhost:5173
+      AUTH_LINK_DELIVERY: stub
+      RUN_SEED: 1
       ALLOWED_ORIGINS: '["http://localhost:5173"]'
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "${BACKEND_PORT:-18000}:8000"
-    command: >-
-      sh -c "( [ \"$(ls -A alembic/versions | wc -l)\" -gt 0 ] || alembic revision --autogenerate -m 'init_schema' ) && \
-      alembic upgrade head && \
-      python -c 'import asyncio; from seed import seed; asyncio.run(seed())' && \
-      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    command: ["/app/docker-entrypoint.sh"]
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
       - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/seed.py:/app/seed.py
+      - ./backend/docker-entrypoint.sh:/app/docker-entrypoint.sh
 
   frontend:
     image: node:20-alpine

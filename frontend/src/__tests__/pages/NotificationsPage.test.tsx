@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const listNotificationsMock = vi.fn(async () => [
+const listNotificationsMock = vi.fn(async (_params?: unknown) => [
   {
     id: 'n1',
     type: 'grade_input',
@@ -75,9 +75,9 @@ const updatePreferencesMock = vi.fn(async (preferences) => {
 });
 
 vi.mock('../../api/notifications', () => ({
-  listNotifications: (...args: any[]) => listNotificationsMock(...args),
-  getPreferences: (...args: any[]) => getPreferencesMock(...args),
-  updatePreferences: (...args: any[]) => updatePreferencesMock(...args),
+  listNotifications: (params?: unknown) => listNotificationsMock(params),
+  getPreferences: () => getPreferencesMock(),
+  updatePreferences: (preferences: typeof currentPreferences) => updatePreferencesMock(preferences),
   markRead: vi.fn(async (id: string) => ({ id, is_read: true })),
   markAllRead: vi.fn(async () => ({ updated: 6 })),
 }));

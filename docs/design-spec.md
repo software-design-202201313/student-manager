@@ -1142,7 +1142,7 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 | A-002 | Subject 생성 주체 | 담임 교사가 직접 생성. Class 생성 후 Subject 추가 플로우. |
 | A-003 | 상담 공유 범위 | 학교 전체 교사 (단순화). OQ-004 미결이나 MVP에서는 전체 공유로 구현. |
 | A-004 | 성적 입력 알림 수신 대상 | 학생 + 해당 학생의 모든 학부모. |
-| A-005 | 비밀번호 재설정 | Should 우선순위. Sprint 5 버퍼로 배치. 이메일 발송 구현 필요 (SendGrid 등 v2). |
+| A-005 | 비밀번호 재설정 | 링크 기반 비밀번호 재설정 구현 완료. 기본 전달 전략은 stub/preview이며 운영 환경에서는 이메일 발송 어댑터 연결 필요. |
 | A-006 | School/Teacher 초기 생성 | Alembic seed script (CLI). 앱 내 관리자 UI 없음 (MVP 범위 외). |
 
 ### 8.3 잠재적 설계 위험
@@ -1157,6 +1157,14 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 | R-006 | 학생 반 이동 시 이전 담임 데이터 접근 불가 | 낮음 | MVP에서는 반 이동 이력 없음. 이동 전 담임이 필요한 데이터 수동 확인 필요. |
 | R-007 | Supabase 무료 DB 500MB 한도 | 낮음 | 1~10학교 MVP 규모에서 충분. v2 전환 시 유료 플랜. |
 | R-008 | school_id 필터 누락 버그 → 타 학교 데이터 노출 | 매우 높음 | 모든 서비스 메서드에 school_id 검증 단위 테스트 필수. Supabase RLS 보조 레이어로 설정. |
+
+### 8.4 2026-04 구현 정렬 사항
+
+- Auth 세션은 `access token(memory)` + `refresh token(HttpOnly cookie)`로 고정되었습니다.
+- 공개 회원가입 페이지는 제거되고 초대 링크 기반 가입(`/auth/invitations/*`)으로 전환되었습니다.
+- 학생/학부모 계정 생성은 초대 대기 상태(`pending_invite`)로 반환되며, 초기 비밀번호를 서버가 더 이상 고정 주입하지 않습니다.
+- 학생 CSV/XLSX import는 이메일을 포함해야 하며, 성적 CSV import는 `student_number + subject_name` 계약과 update 동작을 지원합니다.
+- 상담 상세 화면은 클라이언트 PDF 리포트 내보내기를 지원합니다.
 
 ---
 
@@ -1180,7 +1188,7 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 | REQ-050~051 | §3.8 Notifications | ✅ |
 | REQ-060 | §3.9 (클라이언트 SheetJS) | ✅ |
 | REQ-061~062 | §3.9 (클라이언트 jsPDF) | ✅ |
-| REQ-005 | 비밀번호 재설정 | ⏳ Sprint 5 버퍼 |
+| REQ-005 | 비밀번호 재설정 | ✅ |
 | US-007 AC (알림 ON/OFF) | §3.8 NotificationPreference | ✅ |
 
 ---

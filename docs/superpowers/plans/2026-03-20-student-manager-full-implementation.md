@@ -75,6 +75,16 @@
 - PRD verification: added end-to-end `frontend/e2e/prd-user-stories.spec.ts` and validated all User Stories against the live app.
 - US-005: removed student/parent dashboard feedback 5-item cap, added role-based route protection, added `/my/*` backend regression tests, and added mobile Playwright verification for student/parent read-only views.
 
+## 2026-04-02 Update
+
+- Auth contract: locked access-token-in-memory + refresh-cookie flow and normalized auth guard errors to `{ detail, code }`.
+- Auth lifecycle: aligned access token expiry to 60 minutes, refresh token expiry to 7 days, and standardized refresh cookie settings.
+- Onboarding: replaced placeholder signup with invite-based activation for student/parent accounts and added password recovery/reset flows.
+- Student onboarding: teacher-side student create flow now captures real email addresses and returns invite links; placeholder student accounts are removed.
+- Reporting: expanded grade analysis cards and added counseling PDF export on the frontend.
+- Imports: aligned CSV/XLSX contracts with onboarding/reporting expectations, including grade CSV upsert behavior by `student_number + subject_name`.
+- Ops/QA: replaced runtime migration autogeneration with deterministic `alembic upgrade head`, added `docker-entrypoint.sh`, a reusable QA gate script, and GitHub Actions CI.
+
 ---
 
 ## Remaining Tasks
