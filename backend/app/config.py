@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     password_reset_token_expire_minutes: int = 60
     app_base_url: str = "http://localhost:5173"
     auth_link_delivery: str = "stub"
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    smtp_timeout_seconds: float = 10.0
     # Allow both localhost and 127.0.0.1 for Vite dev server to avoid CORS
     # preflight failures (DELETE/PUT) when the dev host differs.
     allowed_origins: list[str] = [
