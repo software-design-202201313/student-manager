@@ -1,10 +1,13 @@
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.errors import AppException
+from app.dependencies.db import get_db
 from app.ratelimit import limiter
 from app.routers import auth
 from app.routers import semesters
@@ -53,6 +56,15 @@ async def ratelimit_handler(request: Request, exc: RateLimitExceeded):
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/ready")
+async def readiness_check(db: AsyncSession = Depends(get_db)):
+    try:
+        await db.execute(text("SELECT 1"))
+    except Exception as exc:  # pragma: no cover - defensive operational guard
+        raise AppException(503, "데이터베이스 준비가 되지 않았습니다.", "DB_NOT_READY") from exc
+    return {"status": "ok", "database": "ok"}
 
 
 # Routers

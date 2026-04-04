@@ -40,6 +40,11 @@ services:
     ports:
       - "${BACKEND_PORT:-18000}:8000"
     command: ["/app/docker-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready').read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
