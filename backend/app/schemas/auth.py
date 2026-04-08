@@ -2,7 +2,9 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Allow dev/test emails with reserved domains (e.g., placeholder.local)
+    # Using plain str avoids EmailStr rejecting special-use domains.
+    email: str
     password: str = Field(min_length=1)
 
 

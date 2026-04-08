@@ -40,7 +40,7 @@ class StudentResponse(BaseModel):
     class_id: str
     student_number: int
     name: str
-    email: EmailStr
+    email: str
     account_status: str
     invite_status: str
     invite_expires_at: str | None = None
