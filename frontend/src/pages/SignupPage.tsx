@@ -55,7 +55,14 @@ export default function SignupPage() {
       setUser(me);
       navigate('/');
     } catch (err: any) {
-      setError(err?.response?.data?.detail || '초대 수락에 실패했습니다.');
+      const detail = err?.response?.data?.detail;
+      let message = '초대 수락에 실패했습니다.';
+      if (typeof detail === 'string') message = detail;
+      else if (Array.isArray(detail)) {
+        const msgs = detail.map((d: any) => d?.msg).filter(Boolean);
+        if (msgs.length > 0) message = msgs.join(', ');
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }

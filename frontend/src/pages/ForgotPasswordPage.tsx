@@ -24,7 +24,14 @@ export default function ForgotPasswordPage() {
       setPreviewUrl(response.preview_url ?? null);
       setSuccess('재설정 링크를 확인하세요. 스텁 환경에서는 아래 링크로 바로 진행할 수 있습니다.');
     } catch (err: any) {
-      setError(err?.response?.data?.detail || '비밀번호 재설정 요청에 실패했습니다.');
+      const detail = err?.response?.data?.detail;
+      let message = '비밀번호 재설정 요청에 실패했습니다.';
+      if (typeof detail === 'string') message = detail;
+      else if (Array.isArray(detail)) {
+        const msgs = detail.map((d: any) => d?.msg).filter(Boolean);
+        if (msgs.length > 0) message = msgs.join(', ');
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -50,7 +57,14 @@ export default function ForgotPasswordPage() {
       setSuccess('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
       navigate('/login');
     } catch (err: any) {
-      setError(err?.response?.data?.detail || '비밀번호 변경에 실패했습니다.');
+      const detail = err?.response?.data?.detail;
+      let message = '비밀번호 변경에 실패했습니다.';
+      if (typeof detail === 'string') message = detail;
+      else if (Array.isArray(detail)) {
+        const msgs = detail.map((d: any) => d?.msg).filter(Boolean);
+        if (msgs.length > 0) message = msgs.join(', ');
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }

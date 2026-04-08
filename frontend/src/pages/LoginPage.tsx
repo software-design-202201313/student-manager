@@ -45,7 +45,15 @@ export default function LoginPage() {
       setUser(me);
       navigate('/');
     } catch (e: any) {
-      setError(e?.response?.data?.detail || '이메일 또는 비밀번호가 올바르지 않습니다.');
+      const detail = e?.response?.data?.detail;
+      let message = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      if (typeof detail === 'string') message = detail;
+      else if (Array.isArray(detail)) {
+        // Pydantic v2 validation errors
+        const msgs = detail.map((d: any) => d?.msg).filter(Boolean);
+        if (msgs.length > 0) message = msgs.join(', ');
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }
