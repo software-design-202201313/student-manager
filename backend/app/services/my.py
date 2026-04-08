@@ -171,7 +171,7 @@ async def attendance_summary(
     if start_date is None:
         start_date = end_date - timedelta(days=29)
 
-    # Aggregate counts
+    # Aggregate counts and collect dates per status
     from sqlalchemy import case
     stmt = (
         select(
@@ -184,26 +184,43 @@ async def attendance_summary(
     )
     present, absent, late, early_leave = (await db.execute(stmt)).one_or_none() or (0, 0, 0, 0)
 
-    # Daily series (counts per day)
+    # Daily series (counts per day) and status-specific date lists
     series = []
     cur = start_date
     while cur <= end_date:
         series.append({"date": cur.isoformat(), "count": 0})
         cur += timedelta(days=1)
     if series:
-        # fetch raw rows and fill series
+        # fetch raw rows and fill series + status lists
         rows = (
             await db.execute(
-                select(Attendance.date).where(
+                select(Attendance.date, Attendance.status).where(
                     Attendance.student_id == sid, Attendance.date >= start_date, Attendance.date <= end_date
                 )
             )
-        ).scalars().all()
+        ).all()
         idx = {item["date"]: i for i, item in enumerate(series)}
-        for d in rows:
+        present_dates: list[str] = []
+        absent_dates: list[str] = []
+        late_dates: list[str] = []
+        early_leave_dates: list[str] = []
+        for d, status in rows:
             key = d.isoformat()
             if key in idx:
                 series[idx[key]]["count"] += 1
+            if status == "present":
+                present_dates.append(key)
+            elif status == "absent":
+                absent_dates.append(key)
+            elif status == "late":
+                late_dates.append(key)
+            elif status == "early_leave":
+                early_leave_dates.append(key)
+    else:
+        present_dates = []
+        absent_dates = []
+        late_dates = []
+        early_leave_dates = []
 
     return {
         "present": int(present or 0),
@@ -213,4 +230,8 @@ async def attendance_summary(
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "series": series,
+        "present_dates": present_dates,
+        "absent_dates": absent_dates,
+        "late_dates": late_dates,
+        "early_leave_dates": early_leave_dates,
     }
