@@ -2,12 +2,14 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user
 from app.dependencies.db import get_db
 from app.models.user import User
 from app.schemas.grade import GradeResponse, GradeSummaryResponse
+from app.models.subject import Subject
 from app.schemas.user import StudentResponse
 from app.schemas.subject import SubjectResponse
 from app.services import my as mysvc
@@ -43,12 +45,20 @@ async def my_grades(
     sid = uuid.UUID(student_id) if student_id else None
     sem = uuid.UUID(semester_id) if semester_id else None
     rows = await mysvc.list_my_grades(db, current_user=current_user, student_id=sid, semester_id=sem)
+    # Fetch subject names for mapping
+    subject_ids = list({g.subject_id for g in rows})
+    name_map: dict[str, str] = {}
+    if subject_ids:
+        subs = (await db.execute(select(Subject).where(Subject.id.in_(subject_ids)))).scalars().all()
+        for s in subs:
+            name_map[str(s.id)] = s.name
     return [
         GradeResponse(
             id=str(g.id),
             student_id=str(g.student_id),
             subject_id=str(g.subject_id),
             semester_id=str(g.semester_id),
+            subject_name=name_map.get(str(g.subject_id)),
             score=g.score,
             grade_rank=g.grade_rank,
         )
@@ -66,16 +76,25 @@ async def my_grade_summary(
     sid = uuid.UUID(student_id) if student_id else None
     sem = uuid.UUID(semester_id) if semester_id else None
     result = await mysvc.get_my_grade_summary(db, current_user=current_user, student_id=sid, semester_id=sem)
+    # Map subject names
+    grades_raw = result["grades"]
+    subject_ids = list({g.subject_id for g in grades_raw})
+    name_map: dict[str, str] = {}
+    if subject_ids:
+        subs = (await db.execute(select(Subject).where(Subject.id.in_(subject_ids)))).scalars().all()
+        for s in subs:
+            name_map[str(s.id)] = s.name
     grades = [
         GradeResponse(
             id=str(g.id),
             student_id=str(g.student_id),
             subject_id=str(g.subject_id),
             semester_id=str(g.semester_id),
+            subject_name=name_map.get(str(g.subject_id)),
             score=g.score,
             grade_rank=g.grade_rank,
         )
-        for g in result["grades"]
+        for g in grades_raw
     ]
     total = float(result["total"]) if result["total"] is not None else None
     average = float(result["average"]) if result["average"] is not None else None

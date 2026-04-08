@@ -15,6 +15,7 @@ class GradeResponse(BaseModel):
     student_id: str
     subject_id: str
     semester_id: str
+    subject_name: str | None = None
     score: Decimal | None
     grade_rank: int | None
 
