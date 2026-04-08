@@ -254,8 +254,8 @@ async def resend_student_invitation(
     student, user, cls = row
     if cls.teacher_id != teacher_id:
         raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
-    if user.is_active:
-        raise AppException(409, "이미 활성화된 계정입니다.", "INVITATION_ALREADY_ACCEPTED")
+    # Allow issuing a fresh invitation even if the account is already active.
+    # This supports re-onboarding or helping users set/recover passwords via the invite path.
 
     now = dt.datetime.utcnow()
     invitation_result = await db.execute(
