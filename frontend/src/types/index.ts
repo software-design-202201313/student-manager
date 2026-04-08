@@ -25,7 +25,7 @@ export interface StudentSummary {
   name: string;
   email?: string;
   account_status?: string;
-  invite_status?: 'pending' | 'accepted' | 'expired';
+  invite_status?: 'not_sent' | 'pending' | 'accepted' | 'expired';
   invite_expires_at?: string | null;
   invite_sent_at?: string | null;
   invite_resend_count?: number;
@@ -101,6 +101,7 @@ export interface GradeItem {
   student_id: string;
   subject_id: string;
   semester_id: string;
+  subject_name?: string | null;
   score: number | null;
   grade_rank: number | null;
 }

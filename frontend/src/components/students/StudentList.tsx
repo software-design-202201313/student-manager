@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listAttendance, listSpecialNotes, createAttendance, updateAttendance } from '../../api/students';
 import { listSubjects } from '../../api/classes';
 import { listSemesters } from '../../api/semesters';
-import { expireStudentInvitation, resendStudentInvitation } from '../../api/users';
+import { resendStudentInvitation } from '../../api/users';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import InvitationStatusBadge from './InvitationStatusBadge';
@@ -107,18 +107,14 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
     mutationFn: async () => resendStudentInvitation(s.id),
   });
 
-  const { mutate: expireInvite, isPending: isExpiring } = useMutation({
-    mutationFn: async () => expireStudentInvitation(s.id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['students'] });
-      toast.success('초대를 만료 처리했습니다.');
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.detail || '만료 처리에 실패했습니다.');
-    },
-  });
+  // 만료 처리는 빠른 액션에서 제거됨 (2026-04-08)
 
-  const disableInviteActions = s.invite_status === 'accepted';
+  const effectiveInviteStatus: 'not_sent' | 'pending' | 'accepted' | 'expired' = !s.invite_sent_at
+    ? 'not_sent'
+    : (s.invite_status as any) || 'pending';
+  const disableInviteActions = effectiveInviteStatus === 'accepted';
+  const isNotSent = effectiveInviteStatus === 'not_sent';
+  const showSendNow = isNotSent || effectiveInviteStatus === 'expired';
 
   const handleResend = async (copyAfter: boolean) => {
     try {
@@ -148,7 +144,7 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
         </button>
       </td>
       <td className="p-2 border text-center">
-        <InvitationStatusBadge status={s.invite_status} />
+        <InvitationStatusBadge status={effectiveInviteStatus} sentAt={s.invite_sent_at ?? null} />
       </td>
       <td className="p-2 border text-center">{genderLabel(detail?.gender)}</td>
       <td className="p-2 border text-center">
@@ -193,16 +189,26 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
         {gradeAverage != null ? gradeAverage.toFixed(1) : <span className="text-gray-400">-</span>}
       </td>
       <td className="p-2 border text-center">
-        <div className="flex flex-wrap justify-center gap-1">
-          <button type="button" className="rounded border px-2 py-1 text-xs" disabled={disableInviteActions || isResending} onClick={() => void handleResend(false)}>
-            재전송
-          </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" disabled={disableInviteActions || isResending} onClick={() => void handleResend(true)}>
-            링크 복사
-          </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" disabled={disableInviteActions || isExpiring} onClick={() => expireInvite()}>
-            만료 처리
-          </button>
+        <div className="flex flex-wrap justify-center gap-1 relative z-0">
+          {showSendNow ? (
+            <button
+              type="button"
+              className="rounded border px-2 py-1 text-xs relative z-10"
+              disabled={isResending}
+              onClick={() => void handleResend(true)}
+            >
+              전송
+            </button>
+          ) : (
+            <>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(false)}>
+                재전송
+              </button>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(true)}>
+                링크 복사
+              </button>
+            </>
+          )}
         </div>
       </td>
     </tr>
