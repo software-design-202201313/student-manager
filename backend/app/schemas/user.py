@@ -40,6 +40,12 @@ class StudentResponse(BaseModel):
     class_id: str
     student_number: int
     name: str
+    email: EmailStr
+    account_status: str
+    invite_status: str
+    invite_expires_at: str | None = None
+    invite_sent_at: str | None = None
+    invite_resend_count: int = 0
 
 
 class StudentCreateResponse(BaseModel):
@@ -52,3 +58,17 @@ class StudentCreateResponse(BaseModel):
     account_status: str
     invite_url: str | None = None
     invite_expires_at: str | None = None
+    invite_status: str = "pending"
+    invite_sent_at: str | None = None
+    invite_resend_count: int = 0
+
+
+class StudentInvitationActionResponse(BaseModel):
+    id: str
+    user_id: str
+    account_status: str
+    invite_status: str
+    invite_url: str | None = None
+    invite_expires_at: str | None = None
+    invite_sent_at: str | None = None
+    invite_resend_count: int = 0

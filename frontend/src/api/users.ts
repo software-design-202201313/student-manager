@@ -1,5 +1,10 @@
 import apiClient from './client';
-import type { OnboardingAccount, StudentOnboardingResult, StudentSummary } from '../types';
+import type {
+  OnboardingAccount,
+  StudentInvitationActionResult,
+  StudentOnboardingResult,
+  StudentSummary,
+} from '../types';
 
 export async function listStudents(classId?: string): Promise<StudentSummary[]> {
   const { data } = await apiClient.get<StudentSummary[]>(
@@ -26,5 +31,15 @@ export async function createParentAccount(payload: {
   student_id: string;
 }): Promise<OnboardingAccount> {
   const { data } = await apiClient.post<OnboardingAccount>('/users/parents', payload);
+  return data;
+}
+
+export async function resendStudentInvitation(studentId: string): Promise<StudentInvitationActionResult> {
+  const { data } = await apiClient.post<StudentInvitationActionResult>(`/users/students/${studentId}/invitation/resend`);
+  return data;
+}
+
+export async function expireStudentInvitation(studentId: string): Promise<StudentInvitationActionResult> {
+  const { data } = await apiClient.post<StudentInvitationActionResult>(`/users/students/${studentId}/invitation/expire`);
   return data;
 }

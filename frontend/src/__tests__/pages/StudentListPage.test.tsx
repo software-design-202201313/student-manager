@@ -18,8 +18,8 @@ vi.mock('../../api/semesters', () => ({
 vi.mock('../../hooks/useStudents', () => ({
   useStudents: () => ({
     data: [
-      { id: 's1', user_id: 'u1', class_id: 'c1', name: '김철수', student_number: 1 },
-      { id: 's2', user_id: 'u2', class_id: 'c1', name: '이영희', student_number: 2 },
+      { id: 's1', user_id: 'u1', class_id: 'c1', name: '김철수', student_number: 1, email: 'kim@test.com', account_status: 'pending_invite', invite_status: 'pending', invite_expires_at: '2026-04-10T10:00:00', invite_sent_at: '2026-04-08T10:00:00', invite_resend_count: 0 },
+      { id: 's2', user_id: 'u2', class_id: 'c1', name: '이영희', student_number: 2, email: 'lee@test.com', account_status: 'active', invite_status: 'accepted', invite_expires_at: '2026-04-10T10:00:00', invite_sent_at: '2026-04-08T10:00:00', invite_resend_count: 1 },
     ],
     isLoading: false,
   }),
@@ -67,7 +67,7 @@ describe('StudentListPage', () => {
     expect(studentsExcelSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('enables add and upload buttons when classes load', async () => {
+  it('shows invitation actions and status filters when classes load', async () => {
     const user = userEvent.setup();
     const client = new QueryClient();
     render(
@@ -78,19 +78,23 @@ describe('StudentListPage', () => {
       </QueryClientProvider>
     );
 
-    const addBtn = await screen.findByRole('button', { name: '학생 추가' });
-    const uploadBtn = await screen.findByRole('button', { name: '엑셀로 등록' });
+    const addBtn = await screen.findByRole('button', { name: '학생 초대' });
+    const uploadBtn = await screen.findByRole('button', { name: '여러 명 초대' });
     await waitFor(() => {
       expect(addBtn).toBeEnabled();
       expect(uploadBtn).toBeEnabled();
     });
 
+    expect(screen.getByLabelText('대기만 보기')).toBeInTheDocument();
+    expect(screen.getByLabelText('7일 내 만료 예정')).toBeInTheDocument();
+    expect(screen.getByText('초대 상태')).toBeInTheDocument();
+
     // Clicking should open modals; close buttons should appear
     await user.click(addBtn);
-    expect(await screen.findByRole('heading', { name: '학생 추가' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '학생 초대' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '×' }));
 
     await user.click(uploadBtn);
-    expect(await screen.findByRole('heading', { name: '학생 엑셀 업로드' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '여러 명 초대' })).toBeInTheDocument();
   });
 });

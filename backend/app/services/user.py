@@ -1,4 +1,6 @@
+import datetime as dt
 import uuid
+from dataclasses import dataclass
 from typing import List, Tuple
 
 from sqlalchemy import select
@@ -19,6 +21,79 @@ from app.utils.security import generate_opaque_token, hash_password
 
 def _pending_password_hash() -> str:
     return hash_password(generate_opaque_token())
+
+
+@dataclass
+class InvitationSummary:
+    account_status: str
+    invite_status: str
+    invite_expires_at: str | None
+    invite_sent_at: str | None
+    invite_resend_count: int
+
+
+def build_invitation_summary(user: User, invitations: list[UserInvitation]) -> InvitationSummary:
+    latest = invitations[0] if invitations else None
+    now = dt.datetime.utcnow()
+    account_status = "active" if user.is_active else "pending_invite"
+
+    if user.is_active or (latest is not None and latest.accepted_at is not None):
+        invite_status = "accepted"
+    elif latest is None:
+        invite_status = "expired"
+    elif latest.revoked_at is not None or latest.expires_at < now:
+        invite_status = "expired"
+    else:
+        invite_status = "pending"
+
+    return InvitationSummary(
+        account_status=account_status,
+        invite_status=invite_status,
+        invite_expires_at=latest.expires_at.isoformat() if latest is not None else None,
+        invite_sent_at=latest.created_at.isoformat() if latest is not None else None,
+        invite_resend_count=max(len(invitations) - 1, 0),
+    )
+
+
+async def get_student_invitation_summary(
+    db: AsyncSession,
+    *,
+    student_id: uuid.UUID,
+    teacher_id: uuid.UUID,
+) -> tuple[Student, User, InvitationSummary]:
+    result = await db.execute(
+        select(Student, User, Class)
+        .join(User, Student.user_id == User.id)
+        .join(Class, Student.class_id == Class.id)
+        .where(Student.id == student_id)
+    )
+    row = result.first()
+    if row is None:
+        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
+
+    student, user, cls = row
+    if cls.teacher_id != teacher_id:
+        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+
+    invitation_result = await db.execute(
+        select(UserInvitation)
+        .where(UserInvitation.user_id == user.id)
+        .order_by(UserInvitation.created_at.desc())
+    )
+    invitations = invitation_result.scalars().all()
+    return student, user, build_invitation_summary(user, invitations)
+
+
+async def _issue_and_deliver_student_invitation(
+    db: AsyncSession,
+    *,
+    user: User,
+    teacher_id: uuid.UUID,
+) -> tuple[UserInvitation, str]:
+    invitation, raw_token = await issue_invitation(db, user=user, invited_by=teacher_id)
+    link = build_frontend_auth_link("/signup", raw_token)
+    await deliver_auth_link(kind="invitation", recipient_email=user.email, link=link)
+    return invitation, link
 
 
 async def create_student_account(
@@ -129,7 +204,7 @@ async def list_students(
     *,
     teacher_id: uuid.UUID,
     class_id: uuid.UUID | None,
-) -> List[tuple[Student, User]]:
+) -> List[tuple[Student, User, InvitationSummary]]:
     # Only list students of teacher's classes
     class_query = select(Class.id).where(Class.teacher_id == teacher_id)
     if class_id is not None:
@@ -141,7 +216,109 @@ async def list_students(
         .where(Student.class_id.in_(class_query))
         .order_by(Student.student_number)
     )
-    return result.all()
+    rows = result.all()
+    user_ids = [user.id for _, user in rows]
+    invitations_by_user: dict[uuid.UUID, list[UserInvitation]] = {user_id: [] for user_id in user_ids}
+
+    if user_ids:
+        invitation_result = await db.execute(
+            select(UserInvitation)
+            .where(UserInvitation.user_id.in_(user_ids))
+            .order_by(UserInvitation.user_id, UserInvitation.created_at.desc())
+        )
+        for invitation in invitation_result.scalars().all():
+            invitations_by_user.setdefault(invitation.user_id, []).append(invitation)
+
+    return [
+        (student, user, build_invitation_summary(user, invitations_by_user.get(user.id, [])))
+        for student, user in rows
+    ]
+
+
+async def resend_student_invitation(
+    db: AsyncSession,
+    *,
+    student_id: uuid.UUID,
+    teacher_id: uuid.UUID,
+) -> tuple[Student, User, InvitationSummary, str]:
+    result = await db.execute(
+        select(Student, User, Class)
+        .join(User, Student.user_id == User.id)
+        .join(Class, Student.class_id == Class.id)
+        .where(Student.id == student_id)
+    )
+    row = result.first()
+    if row is None:
+        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
+
+    student, user, cls = row
+    if cls.teacher_id != teacher_id:
+        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+    if user.is_active:
+        raise AppException(409, "이미 활성화된 계정입니다.", "INVITATION_ALREADY_ACCEPTED")
+
+    now = dt.datetime.utcnow()
+    invitation_result = await db.execute(
+        select(UserInvitation)
+        .where(UserInvitation.user_id == user.id)
+        .order_by(UserInvitation.created_at.desc())
+    )
+    invitations = invitation_result.scalars().all()
+    for invitation in invitations:
+        if invitation.accepted_at is None and invitation.revoked_at is None and invitation.expires_at >= now:
+            invitation.revoked_at = now
+
+    new_invitation, link = await _issue_and_deliver_student_invitation(
+        db,
+        user=user,
+        teacher_id=teacher_id,
+    )
+    await db.commit()
+    await db.refresh(new_invitation)
+
+    updated_invitations = [new_invitation, *invitations]
+    return student, user, build_invitation_summary(user, updated_invitations), link
+
+
+async def expire_student_invitation(
+    db: AsyncSession,
+    *,
+    student_id: uuid.UUID,
+    teacher_id: uuid.UUID,
+) -> tuple[Student, User, InvitationSummary]:
+    result = await db.execute(
+        select(Student, User, Class)
+        .join(User, Student.user_id == User.id)
+        .join(Class, Student.class_id == Class.id)
+        .where(Student.id == student_id)
+    )
+    row = result.first()
+    if row is None:
+        raise AppException(404, "Student not found", "STUDENT_NOT_FOUND")
+
+    student, user, cls = row
+    if cls.teacher_id != teacher_id:
+        raise AppException(403, "권한이 부족합니다.", "FORBIDDEN")
+    if user.is_active:
+        raise AppException(409, "이미 활성화된 계정입니다.", "INVITATION_ALREADY_ACCEPTED")
+
+    invitation_result = await db.execute(
+        select(UserInvitation)
+        .where(UserInvitation.user_id == user.id)
+        .order_by(UserInvitation.created_at.desc())
+    )
+    invitations = invitation_result.scalars().all()
+    if not invitations:
+        raise AppException(404, "활성 초대가 없습니다.", "INVITATION_NOT_FOUND")
+
+    latest = invitations[0]
+    if latest.accepted_at is not None:
+        raise AppException(409, "이미 수락된 초대입니다.", "INVITATION_ALREADY_ACCEPTED")
+    if latest.revoked_at is None:
+        latest.revoked_at = dt.datetime.utcnow()
+
+    await db.commit()
+    return student, user, build_invitation_summary(user, invitations)
 
 
 async def deactivate_student(db: AsyncSession, *, student_id: uuid.UUID, teacher_id: uuid.UUID):

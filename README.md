@@ -52,6 +52,24 @@ npm run qa
 
 `AUTH_LINK_DELIVERY=stub`는 개발용입니다. 운영에서는 실제 이메일 발송 어댑터로 교체하거나 최소한 서버 로그 전달 모드로 바꿔야 합니다.
 
+### 학생 초대 — 빠른 가이드
+
+- 단건 초대(교사): 학생 목록 화면 상단의 `학생 초대` → 이름/이메일/번호 입력 → 생성 즉시
+  - 제공 액션: `링크 복사`, `QR 보기`, `카카오/문자 공유용 텍스트 복사`
+  - 학생 목록에 `초대 상태(대기/수락/만료)`와 빠른 액션(`재전송`, `링크 복사`, `만료 처리`) 노출
+- 대량 초대(교사): `여러 명 초대` → CSV/XLSX 업로드 또는 엑셀 표 붙여넣기 → 행별 검증 → `유효한 학생만 생성`
+  - 생성 완료 후 `초대 링크 일괄 복사` 제공
+- 가입 수락(학생/학부모): `/signup?token=...`에서 초대 대상 정보 확인, 비밀번호 규칙(8자 이상 등) 실시간 안내 후 수락 시 자동 로그인
+
+관련 API(요약):
+
+- `POST /users/students` — 학생 초대 생성 (teacher)
+- `GET /users/students` — 목록 + 초대 요약(이메일/계정상태/초대상태/만료시각/재전송횟수)
+- `POST /users/students/{id}/invitation/resend` — 초대 재전송 (teacher)
+- `POST /users/students/{id}/invitation/expire` — 초대 만료 처리 (teacher)
+- `GET /auth/invitations/{token}` — 초대 미리보기
+- `POST /auth/invitations/accept` — 초대 수락(비밀번호 설정)
+
 ## Import / Reporting
 
 - 학생 CSV import: `name`, `email`, `student_number`, `birth_date`

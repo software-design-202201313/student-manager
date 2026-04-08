@@ -256,12 +256,14 @@ counseling_updated BOOLEAN    NOT NULL  DEFAULT true
 - **Content-Type**: `application/json` (파일 업로드 제외)
 - **인증**: `Authorization: Bearer <access_token>` (로그인, 리프레시 제외)
 - **오류 응답 형식**: `{ "detail": "message", "code": "ERROR_CODE" }`
-- **페이지네이션**: `?skip=0&limit=20` (기본 20, 최대 100). 응답: `{ "total": int, "items": [...] }`
-- **페이지네이션 일관성**: 목록 조회는 모두 `{ total, items }` 형식. 단건/요약은 객체 직접 반환.
+- **페이지네이션**: MVP 구현은 대부분 목록을 배열로 반환합니다. `skip/limit`은 future contract로 남겨두고, 현재 코드 기준으로는 배열 응답을 우선합니다.
+- **페이지네이션 일관성**: 현재 구현 기준 목록 조회는 배열 형식입니다. 단건/요약은 객체 직접 반환.
 
 ---
 
 ### 3.1 인증 (Auth)
+
+> **현재 구현 기준 메모**: teacher CRUD는 `/grades`, `/feedbacks`, `/counselings`, `/notifications`에 유지되고, student/parent read-only는 `/my/*`로 분리되어 있습니다. 목록 응답은 배열 형식이 기본이며, bulk grade 입력은 `/import/*`로 처리합니다.
 
 #### POST /auth/login
 ```
@@ -1163,10 +1165,18 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 - Auth 세션은 `access token(memory)` + `refresh token(HttpOnly cookie)`로 고정되었습니다.
 - 공개 회원가입 페이지는 제거되고 초대 링크 기반 가입(`/auth/invitations/*`)으로 전환되었습니다.
 - 학생/학부모 계정 생성은 초대 대기 상태(`pending_invite`)로 반환되며, 초기 비밀번호를 서버가 더 이상 고정 주입하지 않습니다.
-- 학생 CSV/XLSX import는 이메일을 포함해야 하며, 성적 CSV import는 `student_number + subject_name` 계약과 update 동작을 지원합니다.
+- teacher CRUD는 `/grades`, `/feedbacks`, `/counselings`, `/notifications`에 유지되고, student/parent read-only는 `/my/*`로 분리되어 있습니다.
+- 목록 응답은 현재 구현 기준 배열 형식입니다.
+- `GET /grades/{student_id}/summary`는 단일 학기(`semester_id`) 기준 응답이며, 비교 모드는 프런트엔드에서 여러 번 호출합니다.
+- 성적 bulk 입력은 `/grades/bulk`가 아니라 `/import/grades`와 `/import/grades/xlsx`로 처리합니다.
+- 학생 CSV/XLSX import는 이메일을 포함하며, 성적 CSV import는 `student_number + subject_name` 계약과 update 동작을 지원합니다.
 - 상담 상세 화면은 클라이언트 PDF 리포트 내보내기를 지원합니다.
 
 ---
+
+## Appendix: PRD → Design Spec 요구사항 추적표
+
+## Appendix: PRD → Design Spec 요구사항 추적표
 
 ## Appendix: PRD → Design Spec 요구사항 추적표
 

@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { createParentAccount, createStudentAccount } from '../../api/users';
 import type { OnboardingAccount, StudentOnboardingResult } from '../../types';
+import InviteQrModal from './InviteQrModal';
+import { buildStudentInviteShareText } from '../../utils/inviteShareText';
+import { copyText } from '../../utils/clipboard';
 
 type OnboardingState = {
   student: StudentOnboardingResult;
@@ -12,11 +16,13 @@ export default function StudentCreateForm({ classId, nextStudentNumber = 1, onCl
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [studentNumber, setStudentNumber] = useState<number>(nextStudentNumber);
   const [birthDate, setBirthDate] = useState<string>('');
   const [parentName, setParentName] = useState('');
   const [parentEmail, setParentEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<OnboardingState | null>(null);
+  const [showQr, setShowQr] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -24,7 +30,7 @@ export default function StudentCreateForm({ classId, nextStudentNumber = 1, onCl
         email,
         name,
         class_id: classId,
-        student_number: nextStudentNumber,
+        student_number: studentNumber,
         birth_date: birthDate || undefined,
       });
 
@@ -42,6 +48,7 @@ export default function StudentCreateForm({ classId, nextStudentNumber = 1, onCl
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['students', { classId }] });
       setCreated(result);
+      toast.success('학생 초대를 만들었습니다.');
     },
     onError: (e: any) => {
       const code = e?.response?.data?.code;
@@ -55,51 +62,58 @@ export default function StudentCreateForm({ classId, nextStudentNumber = 1, onCl
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded shadow-xl p-4 w-full max-w-lg">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold">학생 초대 등록</h2>
+          <h2 className="font-semibold">학생 초대</h2>
           <button onClick={onClose} className="text-gray-500">×</button>
         </div>
         {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
 
         {created ? (
           <div className="space-y-3">
-            <InviteCard title="학생 초대" name={created.student.name} email={created.student.email} inviteUrl={created.student.invite_url} />
+            <InviteCard title="학생 초대" name={created.student.name} email={created.student.email} inviteUrl={created.student.invite_url} studentNumber={created.student.student_number} onShowQr={() => setShowQr(true)} />
             {created.parent && <InviteCard title="학부모 초대" name={created.parent.name} email={created.parent.email} inviteUrl={created.parent.invite_url} />}
             <div className="flex justify-end gap-2 mt-3">
               <button onClick={onClose} className="px-3 py-1 text-sm bg-indigo-600 text-white rounded">닫기</button>
             </div>
+            {showQr && created.student.invite_url && <InviteQrModal inviteUrl={created.student.invite_url} onClose={() => setShowQr(false)} />}
           </div>
         ) : (
           <>
             <div className="space-y-2">
               <div>
-                <label className="block text-sm">학생 이름</label>
-                <input className="border p-1 w-full" value={name} onChange={(e) => setName(e.target.value)} />
+                <label htmlFor="student-name" className="block text-sm">학생 이름</label>
+                <input id="student-name" className="border p-1 w-full" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <label className="block text-sm">학생 이메일</label>
-                <input className="border p-1 w-full" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <label htmlFor="student-email" className="block text-sm">학생 이메일</label>
+                <input id="student-email" className="border p-1 w-full" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div>
-                <label className="block text-sm">생년월일</label>
-                <input className="border p-1 w-full" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                <label htmlFor="student-number" className="block text-sm">번호</label>
+                <input id="student-number" className="border p-1 w-full" type="number" min={1} max={100} value={studentNumber} onChange={(e) => setStudentNumber(Number(e.target.value) || nextStudentNumber)} />
               </div>
-              <div className="rounded border bg-gray-50 p-3 space-y-2">
-                <div className="text-sm font-medium">학부모 초대 (선택)</div>
-                <div>
-                  <label className="block text-sm">학부모 이름</label>
-                  <input className="border p-1 w-full" value={parentName} onChange={(e) => setParentName(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm">학부모 이메일</label>
-                  <input className="border p-1 w-full" type="email" value={parentEmail} onChange={(e) => setParentEmail(e.target.value)} />
-                </div>
+              <div>
+                <label htmlFor="student-birth-date" className="block text-sm">생년월일</label>
+                <input id="student-birth-date" className="border p-1 w-full" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
               </div>
+              <details className="rounded border bg-gray-50 p-3">
+                <summary className="cursor-pointer text-sm font-medium">학부모 초대 (선택)</summary>
+                <div className="mt-3 space-y-2">
+                  <div>
+                    <label htmlFor="parent-name" className="block text-sm">학부모 이름</label>
+                    <input id="parent-name" className="border p-1 w-full" value={parentName} onChange={(e) => setParentName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label htmlFor="parent-email" className="block text-sm">학부모 이메일</label>
+                    <input id="parent-email" className="border p-1 w-full" type="email" value={parentEmail} onChange={(e) => setParentEmail(e.target.value)} />
+                  </div>
+                </div>
+              </details>
             </div>
             <div className="flex justify-end gap-2 mt-3">
               <button onClick={onClose} className="px-3 py-1 text-sm border rounded">취소</button>
               <button
                 onClick={() => mutation.mutate()}
-                disabled={!name || !email || mutation.isPending}
+                disabled={!name || !email || !studentNumber || mutation.isPending}
                 className="px-3 py-1 text-sm bg-indigo-600 text-white rounded disabled:opacity-50"
               >
                 {mutation.isPending ? '등록 중...' : '초대 생성'}
@@ -112,7 +126,25 @@ export default function StudentCreateForm({ classId, nextStudentNumber = 1, onCl
   );
 }
 
-function InviteCard({ title, name, email, inviteUrl }: { title: string; name: string; email: string; inviteUrl?: string | null }) {
+function InviteCard({ title, name, email, inviteUrl, studentNumber, onShowQr }: { title: string; name: string; email: string; inviteUrl?: string | null; studentNumber?: number; onShowQr?: () => void }) {
+  const handleCopyLink = async () => {
+    if (!inviteUrl) return;
+    await copyText(inviteUrl);
+    toast.success('초대 링크를 복사했습니다.');
+  };
+
+  const handleCopyShareText = async () => {
+    if (!inviteUrl) return;
+    await copyText(
+      buildStudentInviteShareText({
+        studentName: name,
+        studentNumber,
+        inviteUrl,
+      })
+    );
+    toast.success('공유용 텍스트를 복사했습니다.');
+  };
+
   return (
     <div className="rounded border p-3 space-y-2">
       <div className="font-medium">{title}</div>
@@ -120,13 +152,19 @@ function InviteCard({ title, name, email, inviteUrl }: { title: string; name: st
       {inviteUrl ? (
         <>
           <div className="text-sm break-all text-blue-700">{inviteUrl}</div>
-          <button
-            type="button"
-            className="px-2 py-1 text-xs border rounded"
-            onClick={() => navigator.clipboard?.writeText(inviteUrl)}
-          >
-            링크 복사
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="px-2 py-1 text-xs border rounded" onClick={() => void handleCopyLink()}>
+              링크 복사
+            </button>
+            {onShowQr && (
+              <button type="button" className="px-2 py-1 text-xs border rounded" onClick={onShowQr}>
+                QR 보기
+              </button>
+            )}
+            <button type="button" className="px-2 py-1 text-xs border rounded" onClick={() => void handleCopyShareText()}>
+              카카오/문자 공유용 텍스트 복사
+            </button>
+          </div>
         </>
       ) : (
         <div className="text-sm text-gray-500">초대 링크를 생성하지 못했습니다.</div>

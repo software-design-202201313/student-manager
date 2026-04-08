@@ -23,6 +23,12 @@ export interface StudentSummary {
   class_id: string;
   student_number: number;
   name: string;
+  email?: string;
+  account_status?: string;
+  invite_status?: 'pending' | 'accepted' | 'expired';
+  invite_expires_at?: string | null;
+  invite_sent_at?: string | null;
+  invite_resend_count?: number;
 }
 
 export interface StudentDetail extends StudentSummary {
@@ -42,6 +48,9 @@ export interface OnboardingAccount {
   account_status: string;
   invite_url?: string | null;
   invite_expires_at?: string | null;
+  invite_status?: 'pending' | 'accepted' | 'expired';
+  invite_sent_at?: string | null;
+  invite_resend_count?: number;
 }
 
 export interface StudentOnboardingResult {
@@ -54,6 +63,20 @@ export interface StudentOnboardingResult {
   account_status: string;
   invite_url?: string | null;
   invite_expires_at?: string | null;
+  invite_status?: 'pending' | 'accepted' | 'expired';
+  invite_sent_at?: string | null;
+  invite_resend_count?: number;
+}
+
+export interface StudentInvitationActionResult {
+  id: string;
+  user_id: string;
+  account_status: string;
+  invite_status: 'pending' | 'accepted' | 'expired';
+  invite_url?: string | null;
+  invite_expires_at?: string | null;
+  invite_sent_at?: string | null;
+  invite_resend_count?: number;
 }
 
 export interface Attendance {

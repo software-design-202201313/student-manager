@@ -27,7 +27,6 @@
 
 ## Remaining / Follow-up
 
-- **UX polish:** Replace raw UUID inputs in Feedback/Counseling forms with a student selector dropdown; add form validation and toast notifications on success/error.
-- **Export:** Wire Excel/PDF export buttons in `StudentListPage` (bulk) and `GradesPage` (per-student).
-- **Accessibility:** Audit focus states, ARIA landmarks, and semantic labels across all new pages.
-- **Responsive:** Final responsive tweaks for mobile sidebar overlay.
+- **Accessibility:** audit focus states, ARIA landmarks, and semantic labels across the new pages.
+- **Responsive:** do one last mobile pass on the sidebar overlay and table scroll behavior.
+- **Note:** the original feature work in this plan is implemented; the remaining items are polish and verification only.

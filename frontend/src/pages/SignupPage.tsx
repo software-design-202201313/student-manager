@@ -29,6 +29,11 @@ export default function SignupPage() {
       .finally(() => setPreviewLoading(false));
   }, [token]);
 
+  const passwordRules = [
+    { label: '8자 이상', passed: password.length >= 8 },
+    { label: '비밀번호 확인 일치', passed: confirmPassword.length > 0 && password === confirmPassword },
+  ];
+
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -67,7 +72,8 @@ export default function SignupPage() {
         {previewLoading ? (
           <div className="text-sm text-gray-500">초대 정보를 확인하는 중...</div>
         ) : invitation ? (
-          <div className="rounded border bg-gray-50 p-3 text-sm space-y-1">
+          <div className="rounded border bg-gray-50 p-3 text-sm space-y-2">
+            <div className="font-medium">이 계정을 활성화합니다</div>
             <div><span className="text-gray-500">이름:</span> {invitation.name}</div>
             <div><span className="text-gray-500">이메일:</span> {invitation.email}</div>
             <div><span className="text-gray-500">역할:</span> {roleLabel(invitation.role)}</div>
@@ -99,6 +105,15 @@ export default function SignupPage() {
             onChange={(event) => setConfirmPassword(event.target.value)}
             disabled={!invitation || loading}
           />
+        </div>
+
+        <div className="rounded border bg-gray-50 p-3 text-sm space-y-2">
+          <div className="font-medium">비밀번호 규칙</div>
+          {passwordRules.map((rule) => (
+            <div key={rule.label} className={rule.passed ? 'text-green-700' : 'text-gray-500'}>
+              {rule.label}
+            </div>
+          ))}
         </div>
 
         <button

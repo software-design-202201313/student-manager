@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { listClasses, deleteClass, listSubjects } from '../api/classes';
 import { useStudents } from '../hooks/useStudents';
 import StudentList from '../components/students/StudentList';
-import ExcelUploadModal from '../components/students/ExcelUploadModal';
+import BulkInviteModal from '../components/students/BulkInviteModal';
 import StudentCreateForm from '../components/students/StudentCreateForm';
 import ClassCreateModal from '../components/classes/ClassCreateModal';
 import type { ClassSummary } from '../types';
@@ -33,6 +33,8 @@ export default function StudentListPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showClassCreate, setShowClassCreate] = useState(false);
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [showExpiringSoonOnly, setShowExpiringSoonOnly] = useState(false);
 
   const currentClassLabel = useMemo(() => {
     const c = classes.find((x) => x.id === effectiveClassId);
@@ -43,6 +45,20 @@ export default function StudentListPage() {
     if (!students || students.length === 0) return 1;
     return Math.max(...students.map((s) => s.student_number)) + 1;
   }, [students]);
+
+  const filteredStudents = useMemo(() => {
+    const source = students || [];
+    return source.filter((student) => {
+      if (showPendingOnly && student.invite_status !== 'pending') return false;
+      if (showExpiringSoonOnly) {
+        const expiresAt = student.invite_expires_at ? new Date(student.invite_expires_at) : null;
+        const now = new Date();
+        const diffDays = expiresAt ? (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
+        if (student.invite_status !== 'pending' || diffDays < 0 || diffDays > 7) return false;
+      }
+      return true;
+    });
+  }, [showExpiringSoonOnly, showPendingOnly, students]);
 
   useEffect(() => {
     (async () => {
@@ -122,7 +138,7 @@ export default function StudentListPage() {
               setShowCreateForm(true);
             }}
           >
-            학생 추가
+            학생 초대
           </button>
           <button
             className="px-3 py-1 rounded text-sm border"
@@ -135,7 +151,7 @@ export default function StudentListPage() {
               setShowUploadModal(true);
             }}
           >
-            CSV로 등록
+            여러 명 초대
           </button>
           <button
             className="px-3 py-1 rounded text-sm border"
@@ -157,15 +173,25 @@ export default function StudentListPage() {
           </button>
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-4 rounded border bg-white p-3">
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={showPendingOnly} onChange={(e) => setShowPendingOnly(e.target.checked)} aria-label="대기만 보기" />
+          대기만 보기
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={showExpiringSoonOnly} onChange={(e) => setShowExpiringSoonOnly(e.target.checked)} aria-label="7일 내 만료 예정" />
+          7일 내 만료 예정
+        </label>
+      </div>
       {isLoading ? (
         <div>불러오는 중...</div>
       ) : students ? (
-        <StudentList students={students} />
+        <StudentList students={filteredStudents} />
       ) : (
         <div>학생이 없습니다.</div>
       )}
       {showUploadModal && effectiveClassId && (
-        <ExcelUploadModal classId={effectiveClassId} onClose={() => setShowUploadModal(false)} />
+        <BulkInviteModal classId={effectiveClassId} onClose={() => setShowUploadModal(false)} />
       )}
       {showCreateForm && effectiveClassId && (
         <StudentCreateForm classId={effectiveClassId} nextStudentNumber={nextStudentNumber} onClose={() => setShowCreateForm(false)} />

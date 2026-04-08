@@ -10,6 +10,13 @@
 
 **Known Coexistence:** 기존 `POST /users/students` (이메일 기반, `schemas/user.py`의 `StudentCreate` 사용)는 그대로 유지한다. 새로 추가하는 개별 등록은 `POST /classes/{class_id}/students`로, 교사가 폼에서 직접 등록하는 용도이며 `schemas/student.py`의 `StudentDirectCreate`를 사용한다. 두 엔드포인트는 용도가 다르므로 공존한다.
 
+## Current State — 2026-04-08
+
+- Student 필드 확장, 개별 학생 등록, CSV/XLSX import, 템플릿 다운로드가 모두 구현되어 있다.
+- Frontend 쪽 학생 등록 폼과 엑셀 업로드 모달도 연결되어 있다.
+- `test-student-data/` 아래의 xlsx 파일은 생성 산출물이며, 저장소에 남기지 않는 편이 좋다.
+- 이 문서는 현재 구현을 설명하는 기록으로 유지하면 되고, 새 기능 개발 대상은 거의 없다.
+
 ---
 
 ## File Structure
