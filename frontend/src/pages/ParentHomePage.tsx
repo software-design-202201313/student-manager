@@ -56,7 +56,7 @@ export default function ParentHomePage() {
 
   const { data: feedbacks } = useQuery({
     queryKey: ['my', 'feedbacks', { student: selectedChildId }],
-    queryFn: () => listMyFeedbacks({ student_id: selectedChildId, limit: 5 }),
+    queryFn: () => listMyFeedbacks({ student_id: selectedChildId }),
     enabled: !!selectedChildId,
   });
 
@@ -191,7 +191,7 @@ export default function ParentHomePage() {
         {!feedbacks || feedbacks.length === 0 ? (
           <div className="text-gray-500 text-sm">표시할 피드백이 없습니다.</div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2 max-h-96 overflow-auto">
             {feedbacks.map((fb: Feedback) => (
               <li key={fb.id} className="border rounded p-2">
                 <div className="text-xs text-gray-500">{new Date(fb.created_at).toLocaleString()} · {LABELS[fb.category] || fb.category}</div>

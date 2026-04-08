@@ -1,4 +1,6 @@
 import datetime as dt
+import hashlib
+import secrets
 from typing import Any, Optional
 
 from jose import JWTError, jwt
@@ -45,3 +47,10 @@ def decode_token(token: str) -> Optional[dict[str, Any]]:
     except JWTError:
         return None
 
+
+def generate_opaque_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_opaque_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

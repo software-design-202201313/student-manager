@@ -215,7 +215,9 @@ export default function CounselingPage() {
         </form>
       )}
 
-      {/* 필터 영역 */}
+      {/* 필터/리스트: 작성 중에는 숨김 */}
+      {!showForm && (
+      <>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-5 md:items-end">
         <div>
           <label className="text-sm text-gray-600" htmlFor="counseling-class-filter">학급 필터</label>
@@ -319,6 +321,8 @@ export default function CounselingPage() {
             </div>
           ))}
         </div>
+      )}
+      </>
       )}
 
       {selectedCounselingId && (

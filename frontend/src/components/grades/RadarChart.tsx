@@ -23,22 +23,25 @@ export default function GradeRadarChart({ subjects, grades, overrideScores, comp
   const gradeMap = new Map(grades.map((g) => [g.subject_id, g.score ?? 0]));
   const compMap = new Map((comparisonGrades ?? []).map((g) => [g.subject_id, g.score ?? 0]));
 
-  const data = subjects.map((s) => {
+  // Prefer explicit subjects; if absent, derive from grades
+  const baseSubjects: { id: string; name: string }[] =
+    subjects && subjects.length > 0
+      ? subjects.map((s) => ({ id: s.id, name: s.name }))
+      : Array.from(
+          new Map(
+            grades.map((g) => [g.subject_id, { id: g.subject_id, name: g.subject_name || g.subject_id }])
+          ).values()
+        );
+
+  const data = baseSubjects.map((s) => {
     const override = overrideScores?.[s.id];
     const score = typeof override === 'number' ? override : (gradeMap.get(s.id) ?? 0);
-    const base: any = {
-      subject: s.name,
-      score,
-    };
-    if (comparisonGrades) {
-      base.scorePrev = compMap.get(s.id) ?? 0;
-    }
+    const base: any = { subject: s.name, score };
+    if (comparisonGrades) base.scorePrev = compMap.get(s.id) ?? 0;
     return base;
   });
 
-  if (data.length === 0) {
-    return <p className="text-gray-500 text-sm">과목 데이터가 없습니다.</p>;
-  }
+  if (data.length === 0) return <p className="text-gray-500 text-sm">과목 데이터가 없습니다.</p>;
 
   return (
     <ResponsiveContainer width="100%" height={320}>

@@ -9,10 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppException
-from app.services.grade import create_grade
+from app.models.grade import Grade
+from app.services.grade import create_grade, update_grade
 from app.services.user import create_student_account
 from app.services.student import create_student as create_student_direct
-from app.models.class_ import Class
 from app.models.student import Student
 from app.models.subject import Subject
 
@@ -21,6 +21,7 @@ from app.models.subject import Subject
 class ImportResult:
     created: int
     skipped: int
+    updated: int
     errors: list[dict[str, Any]]
 
 
@@ -29,27 +30,34 @@ async def import_students_csv(
     *,
     teacher_id: uuid.UUID,
     school_id: uuid.UUID,
+    class_id: uuid.UUID | None,
     content: bytes,
 ) -> ImportResult:
     created = 0
     skipped = 0
+    updated = 0
     errors: list[dict[str, Any]] = []
     f = io.StringIO(content.decode("utf-8"))
     reader = csv.DictReader(f)
-    required = {"email", "name", "class_id", "student_number"}
+    required = {"email", "name", "student_number"}
     if not required.issubset(set(reader.fieldnames or [])):
         missing = list(required - set(reader.fieldnames or []))
         errors.append({"row": 0, "error": f"Missing columns: {', '.join(missing)}"})
-        return ImportResult(created, skipped, errors)
+        return ImportResult(created, skipped, updated, errors)
 
     from app.schemas.user import StudentCreate
 
     for idx, row in enumerate(reader, start=2):
         try:
+            resolved_class_id = row.get("class_id") or (str(class_id) if class_id else None)
+            if not resolved_class_id:
+                errors.append({"row": idx, "error": "class_id query parameter is required"})
+                skipped += 1
+                continue
             data = StudentCreate(
                 email=row["email"],
                 name=row["name"],
-                class_id=row["class_id"],
+                class_id=resolved_class_id,
                 student_number=int(row["student_number"]),
                 birth_date=row.get("birth_date") or None,
             )
@@ -57,52 +65,105 @@ async def import_students_csv(
                 await create_student_account(db, school_id=school_id, teacher_id=teacher_id, data=data)
                 created += 1
             except AppException as e:
-                if e.code == "USER_DUPLICATE_EMAIL":
+                if e.code in {"USER_DUPLICATE_EMAIL", "STUDENT_DUPLICATE_NUMBER"}:
                     skipped += 1
                 else:
                     errors.append({"row": idx, "error": f"{e.code}:{e.detail}"})
         except Exception as e:  # validation error
             errors.append({"row": idx, "error": str(e)})
 
-    return ImportResult(created, skipped, errors)
+    return ImportResult(created, skipped, updated, errors)
 
 
 async def import_grades_csv(
     db: AsyncSession,
     *,
     teacher_id: uuid.UUID,
+    class_id: uuid.UUID | None,
+    semester_id: uuid.UUID | None,
     content: bytes,
 ) -> ImportResult:
     created = 0
     skipped = 0
+    updated = 0
     errors: list[dict[str, Any]] = []
     f = io.StringIO(content.decode("utf-8"))
     reader = csv.DictReader(f)
-    required = {"student_id", "subject_id", "semester_id", "score"}
-    if not required.issubset(set(reader.fieldnames or [])):
-        missing = list(required - set(reader.fieldnames or []))
+    fieldnames = set(reader.fieldnames or [])
+    legacy_required = {"student_id", "subject_id", "semester_id", "score"}
+    prd_required = {"student_number", "subject_name", "score"}
+    use_prd_contract = prd_required.issubset(fieldnames)
+    if not use_prd_contract and not legacy_required.issubset(fieldnames):
+        missing = list(prd_required - fieldnames)
         errors.append({"row": 0, "error": f"Missing columns: {', '.join(missing)}"})
-        return ImportResult(created, skipped, errors)
+        return ImportResult(created, skipped, updated, errors)
+
+    students_by_number: dict[int, uuid.UUID] = {}
+    subjects_by_name: dict[str, uuid.UUID] = {}
+    if use_prd_contract:
+        if class_id is None or semester_id is None:
+            errors.append({"row": 0, "error": "class_id and semester_id query parameters are required"})
+            return ImportResult(created, skipped, updated, errors)
+        result = await db.execute(select(Student).where(Student.class_id == class_id))
+        students_by_number = {student.student_number: student.id for student in result.scalars().all()}
+        result = await db.execute(select(Subject).where(Subject.class_id == class_id))
+        subjects_by_name = {subject.name: subject.id for subject in result.scalars().all()}
 
     for idx, row in enumerate(reader, start=2):
         try:
             try:
+                if use_prd_contract:
+                    resolved_student_id = students_by_number.get(int(row["student_number"]))
+                    if resolved_student_id is None:
+                        errors.append({"row": idx, "error": f"번호 {row['student_number']} 학생을 찾을 수 없습니다."})
+                        skipped += 1
+                        continue
+                    resolved_subject_id = subjects_by_name.get(row["subject_name"])
+                    if resolved_subject_id is None:
+                        errors.append({"row": idx, "error": f"과목 '{row['subject_name']}'을(를) 찾을 수 없습니다."})
+                        skipped += 1
+                        continue
+                    resolved_semester_id = semester_id
+                else:
+                    resolved_student_id = uuid.UUID(row["student_id"])
+                    resolved_subject_id = uuid.UUID(row["subject_id"])
+                    resolved_semester_id = uuid.UUID(row["semester_id"])
+
                 await create_grade(
                     db,
-                    student_id=uuid.UUID(row["student_id"]),
-                    subject_id=uuid.UUID(row["subject_id"]),
-                    semester_id=uuid.UUID(row["semester_id"]),
+                    student_id=resolved_student_id,
+                    subject_id=resolved_subject_id,
+                    semester_id=resolved_semester_id,
                     score=Decimal(row["score"]),
                     created_by=teacher_id,
                     teacher_id=teacher_id,
                 )
                 created += 1
             except AppException as e:
-                errors.append({"row": idx, "error": f"{e.code}:{e.detail}"})
+                if e.code == "GRADE_DUPLICATE":
+                    grade_result = await db.execute(
+                        select(Grade)
+                        .where(Grade.student_id == resolved_student_id)
+                        .where(Grade.subject_id == resolved_subject_id)
+                        .where(Grade.semester_id == resolved_semester_id)
+                    )
+                    grade = grade_result.scalar_one_or_none()
+                    if grade is None:
+                        errors.append({"row": idx, "error": f"{e.code}:{e.detail}"})
+                    else:
+                        await update_grade(
+                            db,
+                            grade_id=grade.id,
+                            score=Decimal(row["score"]),
+                            teacher_id=teacher_id,
+                        )
+                        updated += 1
+                else:
+                    errors.append({"row": idx, "error": f"{e.code}:{e.detail}"})
         except Exception as e:
             errors.append({"row": idx, "error": str(e)})
 
-    return ImportResult(created, skipped, errors)
+    return ImportResult(created, skipped, updated, errors)
 
 
 # --- XLSX Import Functions ---
@@ -125,32 +186,33 @@ async def import_students_xlsx(
         wb = load_workbook(io.BytesIO(content))
         ws = wb.active
     except Exception as e:
-        return ImportResult(0, 0, [{"row": 0, "error": f"Invalid XLSX: {e}"}])
+        return ImportResult(0, 0, 0, [{"row": 0, "error": f"Invalid XLSX: {e}"}])
 
     all_rows: list[list[Any]] = []
     for row in ws.iter_rows(values_only=True):
         all_rows.append(list(row))
     if not all_rows:
-        return ImportResult(0, 0, [{"row": 0, "error": "Empty worksheet"}])
+        return ImportResult(0, 0, 0, [{"row": 0, "error": "Empty worksheet"}])
 
     header = [str(c).strip() if c is not None else "" for c in all_rows[0]]
-    expected = ["이름", "번호", "생년월일", "성별", "연락처", "주소"]
+    expected = ["이름", "이메일", "번호", "생년월일", "성별", "연락처", "주소"]
     if header[: len(expected)] != expected:
         errors.append({"row": 1, "error": "Header mismatch"})
-        return ImportResult(created, skipped, errors)
+        return ImportResult(created, skipped, 0, errors)
 
     from datetime import date, datetime
 
     for row_idx, row in enumerate(all_rows[1:], start=2):
         name = (row[0] if len(row) > 0 else None) or None
-        number = row[1] if len(row) > 1 else None
-        birth = row[2] if len(row) > 2 else None
-        gender = row[3] if len(row) > 3 else None
-        phone = row[4] if len(row) > 4 else None
-        address = row[5] if len(row) > 5 else None
+        email = (row[1] if len(row) > 1 else None) or None
+        number = row[2] if len(row) > 2 else None
+        birth = row[3] if len(row) > 3 else None
+        gender = row[4] if len(row) > 4 else None
+        phone = row[5] if len(row) > 5 else None
+        address = row[6] if len(row) > 6 else None
 
-        if name is None or number is None:
-            errors.append({"row": row_idx, "error": "이름/번호가 비어있습니다."})
+        if name is None or email is None or number is None:
+            errors.append({"row": row_idx, "error": "이름/이메일/번호가 비어있습니다."})
             continue
         try:
             # Normalize birth
@@ -179,6 +241,7 @@ async def import_students_xlsx(
                 class_id=class_id,
                 teacher_id=teacher_id,
                 school_id=school_id,
+                email=str(email),
                 name=str(name),
                 student_number=int(number),
                 birth_date=birth_date,
@@ -195,7 +258,7 @@ async def import_students_xlsx(
         except Exception as e:
             errors.append({"row": row_idx, "error": str(e)})
 
-    return ImportResult(created, skipped, errors)
+    return ImportResult(created, skipped, 0, errors)
 
 
 async def import_grades_xlsx(
@@ -216,18 +279,18 @@ async def import_grades_xlsx(
         wb = load_workbook(io.BytesIO(content))
         ws = wb.active
     except Exception as e:
-        return ImportResult(0, 0, [{"row": 0, "error": f"Invalid XLSX: {e}"}])
+        return ImportResult(0, 0, 0, [{"row": 0, "error": f"Invalid XLSX: {e}"}])
 
     all_rows: list[list[Any]] = []
     for row in ws.iter_rows(values_only=True):
         all_rows.append(list(row))
     if len(all_rows) < 2:
-        return ImportResult(0, 0, [{"row": 0, "error": "Empty worksheet"}])
+        return ImportResult(0, 0, 0, [{"row": 0, "error": "Empty worksheet"}])
 
     header = [str(c).strip() if c is not None else "" for c in all_rows[0]]
     if not header or header[0] != "번호":
         errors.append({"row": 1, "error": "첫 번째 열은 '번호'여야 합니다."})
-        return ImportResult(created, skipped, errors)
+        return ImportResult(created, skipped, 0, errors)
 
     # Map subject names to ids
     subjects_by_name: dict[str, uuid.UUID] = {}
@@ -246,7 +309,7 @@ async def import_grades_xlsx(
             subject_ids.append((idx, sid))
 
     if not subject_ids:
-        return ImportResult(created, skipped, errors)
+        return ImportResult(created, skipped, 0, errors)
 
     # Student number -> student id
     result = await db.execute(select(Student).where(Student.class_id == class_id))
@@ -286,7 +349,7 @@ async def import_grades_xlsx(
             except Exception as e:
                 errors.append({"row": row_idx, "error": str(e)})
 
-    return ImportResult(created, skipped, errors)
+    return ImportResult(created, skipped, 0, errors)
 
 
 def generate_student_template() -> bytes:
@@ -295,8 +358,8 @@ def generate_student_template() -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = "학생 목록"
-    ws.append(["이름", "번호", "생년월일", "성별", "연락처", "주소"])
-    ws.append(["김철수", 1, "2010-03-15", "male", "010-1234-5678", "서울시 강남구"])
+    ws.append(["이름", "이메일", "번호", "생년월일", "성별", "연락처", "주소"])
+    ws.append(["김철수", "kim@example.com", 1, "2010-03-15", "male", "010-1234-5678", "서울시 강남구"])
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

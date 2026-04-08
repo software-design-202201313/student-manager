@@ -13,7 +13,7 @@ from app.models.subject import Subject
 def make_student_xlsx(rows: list[list]) -> bytes:
     wb = Workbook()
     ws = wb.active
-    ws.append(["이름", "번호", "생년월일", "성별", "연락처", "주소"])
+    ws.append(["이름", "이메일", "번호", "생년월일", "성별", "연락처", "주소"])
     for row in rows:
         ws.append(row)
     buf = io.BytesIO()
@@ -51,8 +51,8 @@ async def seed_class(seed_teacher, seed_school) -> Class:
 @pytest.mark.asyncio
 async def test_upload_students_xlsx_returns_result(auth_client_teacher: AsyncClient, seed_class: Class):
     content = make_student_xlsx([
-        ["김철수", 1, "2010-03-15", "male", "010-1234-5678", "서울시"],
-        ["이영희", 2, "2010-05-20", "female", None, None],
+        ["김철수", "kim1@example.com", 1, "2010-03-15", "male", "010-1234-5678", "서울시"],
+        ["이영희", "lee1@example.com", 2, "2010-05-20", "female", None, None],
     ])
     resp = await auth_client_teacher.post(
         f"/api/v1/import/students/xlsx?class_id={seed_class.id}",
@@ -84,7 +84,10 @@ async def test_upload_grades_xlsx_returns_result(auth_client_teacher: AsyncClien
         semester_id = sem.id
 
     # First import students
-    students = make_student_xlsx([["김철수", 1, None, None, None, None], ["이영희", 2, None, None, None, None]])
+    students = make_student_xlsx([
+        ["김철수", "kim2@example.com", 1, None, None, None, None],
+        ["이영희", "lee2@example.com", 2, None, None, None, None],
+    ])
     await auth_client_teacher.post(
         f"/api/v1/import/students/xlsx?class_id={seed_class.id}",
         files={

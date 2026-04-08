@@ -1,5 +1,4 @@
 import pytest
-from httpx import AsyncClient
 
 from tests.conftest import async_session_test
 from app.models import Class

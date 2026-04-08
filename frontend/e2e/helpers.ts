@@ -101,7 +101,7 @@ export async function createStudentAccount(
   expect(res.ok()).toBeTruthy()
   const data = await res.json()
   await api.dispose()
-  return data as { id: string; user_id: string; class_id: string; student_number: number; name: string }
+  return data as { id: string; user_id: string; class_id: string; student_number: number; name: string; invite_url: string }
 }
 
 export async function createParentAccount(
@@ -119,7 +119,21 @@ export async function createParentAccount(
   expect(res.ok()).toBeTruthy()
   const data = await res.json()
   await api.dispose()
-  return data as { id: string; email: string; name: string; role: string }
+  return data as { id: string; email: string; name: string; role: string; invite_url: string }
+}
+
+export async function acceptInvitation(inviteUrl: string, password = DEFAULT_PASSWORD) {
+  const token = new URL(inviteUrl).searchParams.get('token')
+  expect(token).toBeTruthy()
+  const api = await createApiContext()
+  const res = await api.post('auth/invitations/accept', {
+    data: { token, password },
+  })
+  expect(res.ok()).toBeTruthy()
+  const data = await res.json()
+  await api.dispose()
+  tokenCache.set(`${data.user_id}:${password}`, data.access_token as string)
+  return data as { access_token: string; user_id: string; role: string }
 }
 
 export async function createGrade(
@@ -149,12 +163,8 @@ export async function loginViaUi(page: Page, email: string, password = DEFAULT_P
 }
 
 export async function bootstrapSession(page: Page, email: string, password = DEFAULT_PASSWORD) {
-  const token = await loginAndGetToken(email, password)
-  await page.addInitScript((accessToken) => {
-    window.localStorage.setItem('accessToken', accessToken)
-    window.sessionStorage.removeItem('accessToken')
-  }, token)
-  await page.goto('/')
+  await loginViaUi(page, email, password)
+  await expect(page).not.toHaveURL(/\/login/)
 }
 
 export async function logoutViaUi(page: Page) {
@@ -179,11 +189,13 @@ export async function seedAcademicScenario(prefix: string) {
     studentNumber: 1,
     birthDate: '2010-03-02',
   })
-  await createParentAccount(token, {
+  const parent = await createParentAccount(token, {
     email: parentEmail,
     name: `학부모-${suffix}`,
     studentId: student.id,
   })
+  await acceptInvitation(student.invite_url)
+  await acceptInvitation(parent.invite_url)
 
   await createGrade(token, {
     studentId: student.id,

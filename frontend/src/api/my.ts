@@ -45,6 +45,10 @@ export interface AttendanceSummary {
   start_date: string;
   end_date: string;
   series: { date: string; count: number }[];
+  present_dates?: string[];
+  absent_dates?: string[];
+  late_dates?: string[];
+  early_leave_dates?: string[];
 }
 
 export async function getMyAttendanceSummary(params?: { student_id?: string; start_date?: string; end_date?: string }): Promise<AttendanceSummary> {

@@ -1,4 +1,4 @@
-import type { GradeItem, Subject, StudentSummary } from '../types';
+import type { Counseling, GradeItem, Subject, StudentSummary } from '../types';
 
 // Sanitize names used in filenames to prevent path traversal / special char issues
 function safeName(name: string): string {
@@ -37,14 +37,51 @@ export async function exportGradesToPDF(
   doc.text(`${studentName} 성적표`, 14, 20);
 
   const gradeMap = new Map(grades.map((g) => [g.subject_id, g]));
-  let y = 36;
+  const scoredGrades = grades.filter((grade) => grade.score != null);
+  const total = scoredGrades.reduce((sum, grade) => sum + Number(grade.score ?? 0), 0);
+  const average = scoredGrades.length > 0 ? total / scoredGrades.length : null;
+  const highest = scoredGrades.reduce<GradeItem | null>((best, current) => {
+    if (!best) return current;
+    return Number(current.score) > Number(best.score) ? current : best;
+  }, null);
+  const lowest = scoredGrades.reduce<GradeItem | null>((worst, current) => {
+    if (!worst) return current;
+    return Number(current.score) < Number(worst.score) ? current : worst;
+  }, null);
+
+  let y = 32;
   doc.setFontSize(11);
+  doc.text(`총점: ${scoredGrades.length ? total.toFixed(1) : '-'} / 평균: ${average != null ? average.toFixed(1) : '-'}`, 14, y);
+  y += 8;
+  doc.text(`강점 과목: ${highest ? subjectLabel(subjects, highest.subject_id) : '-'} / 보완 과목: ${lowest ? subjectLabel(subjects, lowest.subject_id) : '-'}`, 14, y);
+  y += 12;
   subjects.forEach((s) => {
     const g = gradeMap.get(s.id);
     doc.text(`${s.name}: ${g?.score ?? '-'} (등급 ${g?.grade_rank ?? '-'})`, 14, y);
     y += 8;
   });
   doc.save(`${safeName(studentName)}_성적.pdf`);
+}
+
+export async function exportCounselingReportToPDF(
+  counseling: Counseling,
+  studentName: string,
+) {
+  const { default: jsPDF } = await import('jspdf');
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text(`${studentName} 상담 리포트`, 14, 20);
+  doc.setFontSize(11);
+  doc.text(`상담일: ${counseling.date}`, 14, 32);
+  doc.text(`작성 교사: ${counseling.teacher_name ?? '-'}`, 14, 40);
+  doc.text(`공유 여부: ${counseling.is_shared ? '공유됨' : '비공유'}`, 14, 48);
+  doc.text('상담 내용', 14, 60);
+  doc.text(splitText(doc, counseling.content), 14, 68);
+  if (counseling.next_plan) {
+    doc.text('다음 계획', 14, 108);
+    doc.text(splitText(doc, counseling.next_plan), 14, 116);
+  }
+  doc.save(`${safeName(studentName)}_상담리포트.pdf`);
 }
 
 export async function exportRadarChartToPNG(
@@ -124,6 +161,14 @@ export function exportStudentsToCSV(students: StudentSummary[], classLabel?: str
   anchor.download = classLabel ? `${safeName(classLabel)}_학생목록.csv` : '학생목록.csv';
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function subjectLabel(subjects: Subject[], subjectId: string) {
+  return subjects.find((subject) => subject.id === subjectId)?.name ?? subjectId;
+}
+
+function splitText(doc: { splitTextToSize: (text: string, size: number) => string[] }, text: string) {
+  return doc.splitTextToSize(text, 180);
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

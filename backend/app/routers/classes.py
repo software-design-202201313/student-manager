@@ -5,7 +5,7 @@ from sqlalchemy import select, delete, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies.auth import get_current_user, require_role
+from app.dependencies.auth import require_role
 from app.dependencies.db import get_db
 from app.errors import AppException
 from app.models.class_ import Class
@@ -137,11 +137,12 @@ async def create_student(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("teacher")),
 ):
-    student, user = await create_student_service(
+    student, user, _, _ = await create_student_service(
         db,
         class_id=uuid.UUID(class_id),
         teacher_id=current_user.id,
         school_id=current_user.school_id,
+        email=str(body.email),
         name=body.name,
         student_number=body.student_number,
         birth_date=body.birth_date,
@@ -153,7 +154,9 @@ async def create_student(
         id=str(student.id),
         user_id=str(user.id),
         class_id=str(student.class_id),
+        email=user.email,
         name=user.name,
+        account_status="pending_invite",
         student_number=student.student_number,
         birth_date=student.birth_date,
         gender=student.gender,

@@ -23,26 +23,39 @@ router = APIRouter(prefix="/import", tags=["import"])
 
 @router.post("/students")
 async def import_students(
+    class_id: str | None = Query(default=None),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("teacher")),
 ):
     content = await file.read()
     result = await import_students_csv(
-        db, teacher_id=current_user.id, school_id=current_user.school_id, content=content
+        db,
+        teacher_id=current_user.id,
+        school_id=current_user.school_id,
+        class_id=uuid.UUID(class_id) if class_id else None,
+        content=content,
     )
-    return {"created": result.created, "skipped": result.skipped, "errors": result.errors}
+    return {"created": result.created, "skipped": result.skipped, "updated": result.updated, "errors": result.errors}
 
 
 @router.post("/grades")
 async def import_grades(
+    class_id: str | None = Query(default=None),
+    semester_id: str | None = Query(default=None),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("teacher")),
 ):
     content = await file.read()
-    result = await import_grades_csv(db, teacher_id=current_user.id, content=content)
-    return {"created": result.created, "skipped": result.skipped, "errors": result.errors}
+    result = await import_grades_csv(
+        db,
+        teacher_id=current_user.id,
+        class_id=uuid.UUID(class_id) if class_id else None,
+        semester_id=uuid.UUID(semester_id) if semester_id else None,
+        content=content,
+    )
+    return {"created": result.created, "skipped": result.skipped, "updated": result.updated, "errors": result.errors}
 
 
 @router.post("/students/xlsx")
@@ -60,7 +73,7 @@ async def import_students_xlsx_endpoint(
         class_id=uuid.UUID(class_id),
         content=content,
     )
-    return {"created": result.created, "skipped": result.skipped, "errors": result.errors}
+    return {"created": result.created, "skipped": result.skipped, "updated": result.updated, "errors": result.errors}
 
 
 @router.post("/grades/xlsx")
@@ -79,7 +92,7 @@ async def import_grades_xlsx_endpoint(
         semester_id=uuid.UUID(semester_id),
         content=content,
     )
-    return {"created": result.created, "skipped": result.skipped, "errors": result.errors}
+    return {"created": result.created, "skipped": result.skipped, "updated": result.updated, "errors": result.errors}
 
 
 @router.get("/students/template")

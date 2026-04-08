@@ -24,10 +24,51 @@ class UserResponse(BaseModel):
     role: str
 
 
+class OnboardingResponse(BaseModel):
+    id: str
+    email: EmailStr
+    name: str
+    role: str
+    account_status: str
+    invite_url: str | None = None
+    invite_expires_at: str | None = None
+
+
 class StudentResponse(BaseModel):
     id: str
     user_id: str
     class_id: str
     student_number: int
     name: str
+    email: str
+    account_status: str
+    invite_status: str
+    invite_expires_at: str | None = None
+    invite_sent_at: str | None = None
+    invite_resend_count: int = 0
 
+
+class StudentCreateResponse(BaseModel):
+    id: str
+    user_id: str
+    class_id: str
+    student_number: int
+    name: str
+    email: EmailStr
+    account_status: str
+    invite_url: str | None = None
+    invite_expires_at: str | None = None
+    invite_status: str = "pending"
+    invite_sent_at: str | None = None
+    invite_resend_count: int = 0
+
+
+class StudentInvitationActionResponse(BaseModel):
+    id: str
+    user_id: str
+    account_status: str
+    invite_status: str
+    invite_url: str | None = None
+    invite_expires_at: str | None = None
+    invite_sent_at: str | None = None
+    invite_resend_count: int = 0

@@ -10,6 +10,7 @@ vi.mock('../../api/semesters', () => ({
 vi.mock('../../api/students', () => ({
   getStudent: vi.fn(async () => ({
     id: 's1', user_id: 'u1', class_id: 'c1', student_number: 1, name: '김철수',
+    email: 'kim@example.com', account_status: 'pending_invite',
     birth_date: null, gender: 'male', phone: null, address: null,
   })),
 }));

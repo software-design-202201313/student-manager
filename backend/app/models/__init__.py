@@ -12,6 +12,8 @@ from app.models.feedback import Feedback
 from app.models.counseling import Counseling
 from app.models.notification import Notification
 from app.models.notification_preference import NotificationPreference
+from app.models.user_invitation import UserInvitation
+from app.models.password_reset_token import PasswordResetToken
 
 __all__ = [
     "School",
@@ -28,5 +30,6 @@ __all__ = [
     "Counseling",
     "Notification",
     "NotificationPreference",
+    "UserInvitation",
+    "PasswordResetToken",
 ]
-

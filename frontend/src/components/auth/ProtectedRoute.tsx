@@ -1,13 +1,25 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../../stores/authStore';
-import apiClient from '../../api/client';
-import { getMe } from '../../api/auth';
+import { bootstrapSession, getMe } from '../../api/auth';
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
+function getDefaultRoute(role?: string | null) {
+  if (role === 'student') return '/student';
+  if (role === 'parent') return '/parent';
+  if (role === 'teacher') return '/dashboard';
+  return '/login';
+}
+
+export default function ProtectedRoute({
+  children,
+  roles,
+}: {
+  children: ReactNode;
+  roles?: string[];
+}) {
   const token = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
   const setToken = useAuthStore((s) => s.setAccessToken);
   const setUser = useAuthStore((s) => s.setUser);
   // Always bootstrap auth on mount — token may be null after reload
@@ -19,14 +31,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     const bootstrap = async () => {
       try {
         if (!token) {
-          // Use a bare axios call (no interceptors) to avoid recursive refresh handling
-          const { data } = await axios.post<{ access_token: string }>(
-            `${apiClient.defaults.baseURL}/auth/refresh`,
-            {},
-            { withCredentials: true },
-          );
+          const { token: nextToken, user: nextUser } = await bootstrapSession();
           if (cancelled) return;
-          setToken(data.access_token);
+          setToken(nextToken);
+          setUser(nextUser);
+          return;
         }
         // Fetch current user regardless (token may be already present)
         const me = await getMe();
@@ -48,5 +57,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (checking) return <div className="p-4">불러오는 중...</div>;
   if (!token) return <Navigate to={bootstrapFailed ? "/login?reason=expired" : "/login"} replace />;
+  if (roles && (!user || !roles.includes(user.role))) {
+    return <Navigate to={getDefaultRoute(user?.role)} replace />;
+  }
   return <>{children}</>;
 }

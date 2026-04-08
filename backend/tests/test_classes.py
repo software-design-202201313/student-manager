@@ -74,7 +74,8 @@ async def test_delete_class_with_students_returns_409(auth_client_teacher):
     ).json()
     # create a student in the class
     stu_res = await auth_client_teacher.post(
-        f"/api/v1/classes/{cls['id']}/students", json={"name": "홍길동", "student_number": 1}
+        f"/api/v1/classes/{cls['id']}/students",
+        json={"email": "hong@test.com", "name": "홍길동", "student_number": 1},
     )
     assert stu_res.status_code == 201
 

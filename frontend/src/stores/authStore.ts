@@ -10,22 +10,9 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: (() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-    } catch {
-      return null;
-    }
-  })(),
+  accessToken: null,
   user: null,
   setAccessToken: (token) => set({ accessToken: token }),
   setUser: (user) => set({ user }),
-  logout: () => {
-    try {
-      localStorage.removeItem('accessToken');
-      sessionStorage.removeItem('accessToken');
-    } catch {}
-    set({ accessToken: null, user: null });
-  },
+  logout: () => set({ accessToken: null, user: null }),
 }));

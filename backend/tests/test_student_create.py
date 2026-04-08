@@ -1,5 +1,3 @@
-import uuid
-
 import pytest
 from httpx import AsyncClient
 
@@ -29,6 +27,7 @@ async def test_create_student_returns_201(auth_client_teacher: AsyncClient, seed
     resp = await auth_client_teacher.post(
         f"/api/v1/classes/{seed_class.id}/students",
         json={
+            "email": "kim@example.com",
             "name": "김철수",
             "student_number": 1,
             "gender": "male",
@@ -43,8 +42,10 @@ async def test_create_student_returns_201(auth_client_teacher: AsyncClient, seed
 
 @pytest.mark.asyncio
 async def test_create_student_duplicate_number_returns_409(auth_client_teacher: AsyncClient, seed_class: Class):
-    body = {"name": "이영희", "student_number": 99}
+    body = {"email": "lee@example.com", "name": "이영희", "student_number": 99}
     await auth_client_teacher.post(f"/api/v1/classes/{seed_class.id}/students", json=body)
-    resp = await auth_client_teacher.post(f"/api/v1/classes/{seed_class.id}/students", json=body)
+    resp = await auth_client_teacher.post(
+        f"/api/v1/classes/{seed_class.id}/students",
+        json={**body, "email": "lee-duplicate@example.com"},
+    )
     assert resp.status_code == 409
-

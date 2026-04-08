@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 // Mocks must come before component import
 vi.mock('../../api/students', () => ({
-  getStudent: vi.fn(async () => ({ id: 's1', class_id: 'c1', name: '홍길동' })),
+  getStudent: vi.fn(async () => ({ id: 's1', user_id: 'u1', class_id: 'c1', name: '홍길동', email: 'hong@example.com', account_status: 'pending_invite', student_number: 1, birth_date: null, gender: null, phone: null, address: null })),
 }));
 
 vi.mock('../../api/semesters', () => ({

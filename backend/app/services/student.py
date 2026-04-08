@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import List, Optional
 
-from sqlalchemy import and_, select, delete
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,8 @@ from app.models.feedback import Feedback
 from app.models.counseling import Counseling
 from app.models.parent_student import ParentStudent
 from app.models.grade import Grade
+from app.schemas.user import StudentCreate
+from app.services.user import create_student_account
 
 
 async def _teacher_owns_student(db: AsyncSession, *, student_id: uuid.UUID, teacher_id: uuid.UUID) -> tuple[Student, User, Class]:
@@ -179,13 +181,14 @@ async def create_student(
     class_id: uuid.UUID,
     teacher_id: uuid.UUID,
     school_id: uuid.UUID,
+    email: str,
     name: str,
     student_number: int,
     birth_date: date | None = None,
     gender: str | None = None,
     phone: str | None = None,
     address: str | None = None,
-) -> tuple[Student, User]:
+) -> tuple[Student, User, str, str]:
     # Validate class ownership and school scope
     result = await db.execute(select(Class).where(Class.id == class_id))
     cls = result.scalar_one_or_none()
@@ -201,34 +204,25 @@ async def create_student(
     if exists.scalar_one_or_none() is not None:
         raise AppException(409, "해당 번호의 학생이 이미 존재합니다.", "STUDENT_DUPLICATE_NUMBER")
 
-    # Create a placeholder user account for student
-    from app.utils.security import hash_password
-
-    email = f"student-{uuid.uuid4().hex[:12]}@placeholder.local"
-    user = User(
+    user, student, invitation, invite_url = await create_student_account(
+        db,
         school_id=school_id,
-        email=email,
-        hashed_password=hash_password("placeholder"),
-        role="student",
-        name=name,
+        teacher_id=teacher_id,
+        data=StudentCreate(
+            email=email,
+            name=name,
+            class_id=str(class_id),
+            student_number=student_number,
+            birth_date=birth_date,
+        ),
     )
-    db.add(user)
-    await db.flush()
-
-    student = Student(
-        user_id=user.id,
-        class_id=class_id,
-        student_number=student_number,
-        birth_date=birth_date,
-        gender=gender,
-        phone=phone,
-        address=address,
-    )
-    db.add(student)
+    student.gender = gender
+    student.phone = phone
+    student.address = address
     await db.commit()
     await db.refresh(student)
     await db.refresh(user)
-    return student, user
+    return student, user, invitation.expires_at.isoformat(), invite_url
 
 
 async def delete_student(

@@ -5,8 +5,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listAttendance, listSpecialNotes, createAttendance, updateAttendance } from '../../api/students';
 import { listSubjects } from '../../api/classes';
 import { listSemesters } from '../../api/semesters';
+import { resendStudentInvitation } from '../../api/users';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import InvitationStatusBadge from './InvitationStatusBadge';
+import { copyText } from '../../utils/clipboard';
 
 function formatDateYYYYMMDD(d: Date) {
   const y = d.getFullYear();
@@ -100,6 +103,34 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
     },
   });
 
+  const { mutateAsync: resendInvite, isPending: isResending } = useMutation({
+    mutationFn: async () => resendStudentInvitation(s.id),
+  });
+
+  // 만료 처리는 빠른 액션에서 제거됨 (2026-04-08)
+
+  const effectiveInviteStatus: 'not_sent' | 'pending' | 'accepted' | 'expired' = !s.invite_sent_at
+    ? 'not_sent'
+    : (s.invite_status as any) || 'pending';
+  const disableInviteActions = effectiveInviteStatus === 'accepted';
+  const isNotSent = effectiveInviteStatus === 'not_sent';
+  const showSendNow = isNotSent || effectiveInviteStatus === 'expired';
+
+  const handleResend = async (copyAfter: boolean) => {
+    try {
+      const result = await resendInvite();
+      qc.invalidateQueries({ queryKey: ['students'] });
+      if (copyAfter && result.invite_url) {
+        await copyText(result.invite_url);
+        toast.success('새 초대 링크를 복사했습니다.');
+        return;
+      }
+      toast.success('초대를 재전송했습니다.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || '초대 재전송에 실패했습니다.');
+    }
+  };
+
   return (
     <tr className="border-b hover:bg-gray-50">
       <td className="p-2 border text-center">{s.student_number}</td>
@@ -111,6 +142,9 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
         >
           {s.name}
         </button>
+      </td>
+      <td className="p-2 border text-center">
+        <InvitationStatusBadge status={effectiveInviteStatus} sentAt={s.invite_sent_at ?? null} />
       </td>
       <td className="p-2 border text-center">{genderLabel(detail?.gender)}</td>
       <td className="p-2 border text-center">
@@ -154,6 +188,29 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
       <td className="p-2 border text-center">
         {gradeAverage != null ? gradeAverage.toFixed(1) : <span className="text-gray-400">-</span>}
       </td>
+      <td className="p-2 border text-center">
+        <div className="flex flex-wrap justify-center gap-1 relative z-0">
+          {showSendNow ? (
+            <button
+              type="button"
+              className="rounded border px-2 py-1 text-xs relative z-10"
+              disabled={isResending}
+              onClick={() => void handleResend(true)}
+            >
+              전송
+            </button>
+          ) : (
+            <>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(false)}>
+                재전송
+              </button>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(true)}>
+                링크 복사
+              </button>
+            </>
+          )}
+        </div>
+      </td>
     </tr>
   );
 }
@@ -180,11 +237,13 @@ export default function StudentList({ students }: { students: StudentSummary[] }
           <tr>
             <th className="p-2 border">번호</th>
             <th className="p-2 border text-center">이름</th>
+            <th className="p-2 border">초대 상태</th>
             <th className="p-2 border">성별</th>
             <th className="p-2 border">오늘 출결</th>
             <th className="p-2 border">특이사항</th>
             <th className="p-2 border">성적</th>
             <th className="p-2 border">평균</th>
+            <th className="p-2 border">빠른 액션</th>
           </tr>
         </thead>
         <tbody>

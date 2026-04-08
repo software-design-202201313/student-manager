@@ -1,6 +1,7 @@
 import { useAuthStore } from '../../stores/authStore';
 import { logout } from '../../api/auth';
 import NotificationBell from '../notifications/NotificationBell';
+import { Link } from 'react-router-dom';
 
 export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const user = useAuthStore((s) => s.user);
@@ -16,7 +17,9 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar?: () => vo
         >
           ☰
         </button>
-        <div className="font-semibold truncate md:hidden">Student Manager</div>
+        <Link to="/" className="font-semibold text-lg tracking-tight text-gray-800 hover:text-black">
+          ClassFlow
+        </Link>
       </div>
       <div className="flex items-center gap-3">
         <NotificationBell />

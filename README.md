@@ -1,125 +1,97 @@
 # Student Manager
 
-학생 성적·상담 통합 관리 웹앱
+학생 성적·상담 통합 관리 웹앱입니다. 현재 구현은 FastAPI 백엔드와 React/Vite 프런트엔드를 사용하며, 인증은 `access token(메모리)` + `refresh token(HttpOnly 쿠키)` 조합으로 동작합니다.
 
 ## Quick Start
 
-### 1) Docker Compose (추천)
-
-레포 루트에서 다음을 실행합니다.
+### Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-- 접속: FE `http://localhost:5173`, BE `http://localhost:18000`, Swagger `http://localhost:18000/docs`
-- 다른 포트를 쓰고 싶다면 `BACKEND_PORT=8000 docker compose up --build`처럼 원하는 값으로 덮어쓸 수 있습니다.
-- 기본 계정: `teacher@example.com` / `password123`
- - 최초 실행 시 Alembic가 자동으로 초기 마이그레이션을 생성/적용합니다(`alembic/versions`가 비어있는 경우).
+- 프런트엔드: `http://localhost:5173`
+- 백엔드: `http://localhost:18000`
+- Swagger: `http://localhost:18000/docs`
+- 기본 교사 계정: `teacher@example.com` / `password123`
 
-마이그레이션 & 시드 동작:
-- Alembic은 `DATABASE_URL`(async 드라이버 제거 후 sync로 변환)로 연결하여 마이그레이션을 실행합니다.
-- 컨테이너 시작 시 `alembic/versions`가 비어있다면 `revision --autogenerate` 후 `upgrade head`를 수행합니다.
-- 시드(`backend/seed.py`)는 기본적으로 테이블 생성을 건너뜁니다. 단, SQLite 사용 시 또는 `RUN_CREATE_ALL=1` 환경변수 설정 시에만 `Base.metadata.create_all`을 수행합니다.
+기본 동작:
 
-### 2) Docker로 백엔드만 실행 + 로컬 프런트엔드
+- 백엔드는 시작 시 `alembic upgrade head`만 수행합니다.
+- 시드는 `RUN_SEED=1`일 때만 실행됩니다.
+- 런타임에 마이그레이션을 자동 생성하지 않습니다.
 
-```bash
-# Backend (Docker)
-cd backend
-docker build -t student-manager-backend .
-docker run --rm -p 18000:8000 \
-  -v $(pwd)/test.db:/app/test.db \
-  -e ALLOWED_ORIGINS='["http://localhost:5173"]' \
-  student-manager-backend
-
-# Frontend (Vite dev)
-cd ../frontend
-npm install
-npm run dev
-```
-
-주의: `ALLOWED_ORIGINS`는 JSON 문자열이어야 합니다. 예) `'["http://localhost:5173"]'`
-
-Postgres 사용 시(선택):
+### 로컬 검증
 
 ```bash
-docker run --rm -p 18000:8000 \
-  -e DATABASE_URL='postgresql+asyncpg://user:pass@host:5432/student_manager' \
-  -e RUN_CREATE_ALL=0 \
-  -e ALLOWED_ORIGINS='["http://localhost:5173"]' \
-  student-manager-backend
+npm run qa
+```
 
-수동 Alembic 사용(예):
-```bash
-cd backend
-# autogenerate 후 업그레이드
-alembic revision --autogenerate -m "init_schema"
-alembic upgrade head
-```
-```
+현재 QA 게이트:
+
+- 백엔드 `ruff check app tests`
+- 백엔드 `pytest`
+- 프런트엔드 `tsc --noEmit`
+
+## Auth / Onboarding
+
+- 액세스 토큰은 브라우저 메모리에만 저장합니다.
+- 리프레시 토큰은 `HttpOnly` 쿠키로 관리합니다.
+- 회원가입은 공개 가입이 아니라 초대 기반입니다.
+- 교사가 학생/학부모 계정을 만들면 초대 링크가 생성됩니다.
+- 비밀번호 재설정은 링크 기반이며, 기본 설정에서는 스텁 링크를 바로 반환합니다.
+
+주요 관련 환경 변수:
+
+- `ACCESS_TOKEN_EXPIRE_MINUTES=60`
+- `REFRESH_TOKEN_EXPIRE_DAYS=7`
+- `INVITE_TOKEN_EXPIRE_HOURS=72`
+- `PASSWORD_RESET_TOKEN_EXPIRE_MINUTES=60`
+- `APP_BASE_URL=http://localhost:5173`
+- `AUTH_LINK_DELIVERY=stub`
+
+`AUTH_LINK_DELIVERY=stub`는 개발용입니다. 운영에서는 실제 이메일 발송 어댑터로 교체하거나 최소한 서버 로그 전달 모드로 바꿔야 합니다.
+
+### 학생 초대 — 빠른 가이드
+
+- 단건 초대(교사): 학생 목록 화면 상단의 `학생 초대` → 이름/이메일/번호 입력 → 생성 즉시
+  - 제공 액션: `링크 복사`, `QR 보기`, `카카오/문자 공유용 텍스트 복사`
+  - 학생 목록에 `초대 상태(대기/수락/만료)`와 빠른 액션(`재전송`, `링크 복사`, `만료 처리`) 노출
+- 대량 초대(교사): `여러 명 초대` → CSV/XLSX 업로드 또는 엑셀 표 붙여넣기 → 행별 검증 → `유효한 학생만 생성`
+  - 생성 완료 후 `초대 링크 일괄 복사` 제공
+- 가입 수락(학생/학부모): `/signup?token=...`에서 초대 대상 정보 확인, 비밀번호 규칙(8자 이상 등) 실시간 안내 후 수락 시 자동 로그인
+
+관련 API(요약):
+
+- `POST /users/students` — 학생 초대 생성 (teacher)
+- `GET /users/students` — 목록 + 초대 요약(이메일/계정상태/초대상태/만료시각/재전송횟수)
+- `POST /users/students/{id}/invitation/resend` — 초대 재전송 (teacher)
+- `POST /users/students/{id}/invitation/expire` — 초대 만료 처리 (teacher)
+- `GET /auth/invitations/{token}` — 초대 미리보기
+- `POST /auth/invitations/accept` — 초대 수락(비밀번호 설정)
+
+## Import / Reporting
+
+- 학생 CSV import: `name`, `email`, `student_number`, `birth_date`
+- 학생 XLSX import: `이름`, `이메일`, `번호`, `생년월일`, `성별`, `연락처`, `주소`
+- 성적 CSV import: `student_number`, `subject_name`, `score` + 쿼리 `class_id`, `semester_id`
+- 성적 XLSX import: 첫 열 `번호`, 이후 과목명 열
+- 상담 상세에서는 PDF 리포트 내보내기를 지원합니다.
+- 성적 화면은 총점/평균/강점/보완 과목 분석을 제공합니다.
+
+## CI
+
+GitHub Actions 워크플로는 다음을 실행합니다.
+
+- 백엔드 의존성 설치
+- 프런트엔드 의존성 설치
+- 백엔드 lint + test
+- 프런트엔드 typecheck
+
+워크플로 파일: `.github/workflows/ci.yml`
 
 ## Docs
 
 - PRD: `docs/prd.md`
-- 구현 계획: `docs/superpowers/plans/2026-03-20-student-manager-full-implementation.md`
 - 디자인 스펙: `docs/design-spec.md`
-
-## MCP: Chrome DevTools
-
-이 레포에는 MCP 클라이언트(예: Claude Desktop)에서 사용할 수 있는 Chrome DevTools MCP 서버가 개발 도구로 포함되어 있습니다. 실행은 프런트엔드 폴더에서 진행하세요:
-
-```bash
-cd frontend
-npm run mcp:chrome           # 서버 실행(Chrome 인스턴스 관리)
-npm run mcp:chrome:auto      # 로컬에서 실행 중인 Chrome(144+)에 자동 연결
-npm run mcp:chrome:beta      # Beta 채널 Chrome 사용
-```
-
-참고:
-- autoConnect를 사용하려면 Chrome에서 `chrome://inspect/#remote-debugging` 페이지에서 Remote Debugging을 활성화해야 합니다.
-- 샌드박스나 CI 환경에서는 브라우저 실행이 제한될 수 있습니다. 로컬에서 실행하세요.
-
-### MCP 헬스체크
-
-로컬에서 MCP가 정상 동작하는지 빠르게 점검하려면:
-
-```bash
-node scripts/mcp-health.mjs
-```
-
-- CLI/데몬 상태를 확인하고, 필요 시 간단한 페이지 열기/스크린샷까지 검증합니다.
-- 제한된 환경(샌드박스/CI)에서는 headless 시작이 실패할 수 있습니다. 이 경우 로컬에서 `npm run mcp:chrome` 또는 `npm run mcp:chrome:auto`를 먼저 실행한 뒤 다시 점검하세요.
-
-환경 변수로 외부 Chrome에 연결할 수도 있습니다:
-
-```bash
-# 이미 원격 디버깅(예: 127.0.0.1:9222) 중인 Chrome에 연결
-MCP_BROWSER_URL=http://127.0.0.1:9222 node scripts/mcp-grade-e2e.mjs
-
-# 또는 ws 엔드포인트로 직접 연결
-MCP_WS_ENDPOINT=ws://127.0.0.1:9222/devtools/browser/<id> node scripts/mcp-grade-e2e.mjs
-```
-
-### MCP로 성적 관리 E2E 실행
-
-사전 준비:
-- Docker Compose로 백엔드/프런트엔드 실행: `docker compose up --build`
-- 첫 실행 후 기본 계정 `teacher@example.com` / `password123`
-
-실행:
-```bash
-# 1) MCP 서버는 스크립트가 자동으로 시작(headless)합니다.
-# 2) E2E 스크립트 실행 (Chrome을 자동 제어)
-node scripts/mcp-grade-e2e.mjs
-
-# 완료 후 스크린샷 아티팩트:
-#   frontend/e2e-artifacts/grades-chart.png
-```
-
-문제 해결:
-- 로컬에서 Chrome 실행이 제한된 경우:
-  - `cd frontend && npm run mcp:chrome:auto` 로 MCP 서버를 수동으로 띄운 뒤,
-  - 다른 터미널에서 `node scripts/mcp-grade-e2e.mjs` 실행
-- 포트/네트워크 이슈 시 `http://localhost:5173` 접근이 가능한지 확인
- - `uv_os_get_passwd ENOENT` 오류가 보이면 현재 런타임(샌드박스/CI)의 시스템 제한입니다. 로컬에서 Chrome을 띄운 후 실행하거나, 위의 `MCP_BROWSER_URL` 환경 변수 연결 방식을 사용하세요.
+- 구현 계획: `docs/superpowers/plans/2026-03-20-student-manager-full-implementation.md`

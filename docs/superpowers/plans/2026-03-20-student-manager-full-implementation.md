@@ -11,31 +11,32 @@
 
 ---
 
-## Implementation Status — 2026-03-26
+## Implementation Status — 2026-04-08
 
 - [x] Backend: project scaffold, config, DB base, health route
-- [x] Backend: all 14 models + seed (Alembic initial migration placeholder; real migration pending)
+- [x] Backend: all backend models + seed (auth support models included)
 - [x] Backend: utils (bcrypt/JWT, 9-grade calc) + tests
 - [x] Backend: auth dependencies, auth service + router (login/refresh/logout/me)
 - [x] Backend: semesters, classes, subjects CRUD
 - [x] Backend: users (student/parent create, list, deactivate)
-- [x] Backend: grades CRUD + summary (bulk pending); security scoped to teacher-owned students
+- [x] Backend: grades CRUD + summary (bulk import handled via `/import/*`)
 - [x] Backend: students detail/update, attendance, special notes
 - [x] Backend: feedbacks CRUD (owner/visibility rules)
 - [x] Backend: counselings CRUD + sharing + filters
 - [x] Backend: notifications (list/mark-read/read-all, preferences) + side-effects
-- [x] Backend: CSV imports (students, grades)
+- [x] Backend: CSV/XLSX imports (students, grades)
 - [x] Security: rate limit on `/auth/login` (5/min), JSON 429 handler
-- [ ] Security: additional cross-school isolation tests (nice-to-have)
+- [x] Security: cross-school isolation tests
 - [x] Frontend: Vite+React+TS+Tailwind scaffold, axios client with refresh interceptor
 - [x] Frontend: Zustand auth store, `ProtectedRoute`, layout (`Sidebar`, `Header`)
 - [x] Frontend: `LoginPage`
 - [x] Frontend: API modules/hooks — Semesters, Classes/Subjects, Users/Students, Grades, Notifications, Feedback, Counseling
 - [x] Frontend: pages — Student List, Student Detail, Grades (autosave grid), Notifications
-- [x] Frontend: pages — Dashboard, Feedback, Counseling, Grades radar chart
+- [x] Frontend: pages — Dashboard, Feedback, Counseling, Grades radar chart, Student/Parent home dashboards
 - [x] Frontend: export (Excel/PDF), responsive polish
-- [x] Tests: backend unit tests passing locally (27/27 on Python 3.12)
-- [ ] QA: integration test suite and coverage target ≥ 80%
+- [x] Tests: backend unit tests passing locally (85/85 on Python 3.12)
+- [x] QA: backend lint/test + frontend typecheck passing locally
+- [ ] QA: integration/e2e coverage target >= 80%
 - [x] Infra: backend Dockerfile + docker-compose (db/backend/frontend) for local run
 - [x] Docs: README Quick Start updated (Compose, Docker backend + local FE)
 - [x] Docs: PRD delta section added (MVP vs. PRD differences)
@@ -43,12 +44,12 @@
 
 **Notes**
 - Runtime: recommend Python 3.11/3.12. `bcrypt` pinned (4.2.0) for `passlib` compatibility.
-- Security: ownership checks enforced across services; cross-school isolation tests to be added.
+- Security: ownership checks enforced across services; cross-school isolation tests are now present.
 - Local run: `docker compose up --build` brings up Postgres, backend (FastAPI), and frontend (Vite dev) with proxy.
 - Frontend build: `@vitejs/plugin-react` omitted to support restricted envs; re-enable in dev when available for HMR.
-- API shapes (MVP): list endpoints return arrays (no pagination); `GET /notifications` returns list only; `read-all` → `{ updated }`.
-- Auth errors: business errors use `{ detail, code }`, some 401/403 from auth guard may use FastAPI default format.
-- Semesters list: teacher-only in MVP (student/parent expansion planned).
+- API shapes (MVP): list endpoints currently return arrays; pagination is intentionally deferred for MVP.
+- Auth errors: business errors use `{ detail, code }`.
+- Semesters list: now available to any authenticated user.
 
 ---
 
@@ -75,20 +76,24 @@
 - PRD verification: added end-to-end `frontend/e2e/prd-user-stories.spec.ts` and validated all User Stories against the live app.
 - US-005: removed student/parent dashboard feedback 5-item cap, added role-based route protection, added `/my/*` backend regression tests, and added mobile Playwright verification for student/parent read-only views.
 
+## 2026-04-02 Update
+
+- Auth contract: locked access-token-in-memory + refresh-cookie flow and normalized auth guard errors to `{ detail, code }`.
+- Auth lifecycle: aligned access token expiry to 60 minutes, refresh token expiry to 7 days, and standardized refresh cookie settings.
+- Onboarding: replaced placeholder signup with invite-based activation for student/parent accounts and added password recovery/reset flows.
+- Student onboarding: teacher-side student create flow now captures real email addresses and returns invite links; placeholder student accounts are removed.
+- Reporting: expanded grade analysis cards and added counseling PDF export on the frontend.
+- Imports: aligned CSV/XLSX contracts with onboarding/reporting expectations, including grade CSV upsert behavior by `student_number + subject_name`.
+- Ops/QA: replaced runtime migration autogeneration with deterministic `alembic upgrade head`, added `docker-entrypoint.sh`, a reusable QA gate script, and GitHub Actions CI.
+
 ---
 
-## Remaining Tasks
+## Current Gaps
 
-- QA: add integration tests and raise coverage to ≥ 80%; basic FE integration/e2e checks.
-- Security tests: add cross-school isolation tests across services (nice-to-have, backend).
-- Dev UX: re-enable `@vitejs/plugin-react` locally for React Refresh when devDeps are available.
-- Data migrations: auto-generate first Alembic migration on startup if empty (docker-compose). Replace with fixed migration & CI check for prod.
-- Grades: implement `POST /grades/bulk` (or keep CSV import only and update docs).
-- API consistency: add pagination `{ total, items }` across list endpoints; consider `unread_count` in notifications or keep client-computed.
-- Error contract: unify 401/403 to `{ detail, code }` (wrap auth guard) or document exception; ensure consistency.
-- Roles/Scopes: expand `GET /semesters` (and necessary reads) to student/parent; add minimal student/parent read-only views in FE.
-- UX polish: replace raw UUID inputs in Feedback/Counseling forms with student selector; add validation and toasts.
-- Accessibility: audit focus states, landmarks, and semantic labels; finalize responsive tweaks.
+- QA: add integration/e2e coverage and prove the coverage target >= 80%.
+- API contract: decide whether list endpoints should stay array-based for MVP or move back to `{ total, items }` pagination.
+- Bulk grades: decide whether `POST /grades/bulk` is still worth adding, or whether `/import/grades` and `/import/grades/xlsx` are the supported bulk path.
+- Optional UX: final accessibility pass and any small responsive polish that turns up in manual review.
 
 ---
 
