@@ -29,9 +29,10 @@ async function seedData(apiBase: string) {
 
   // Create a class
   const now = new Date()
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
   const clsRes = await api.post('classes', {
     headers: authHeaders,
-    data: { name: '1반', grade: 1, year: now.getFullYear() },
+    data: { name: `1반-${suffix}`, grade: 1, year: now.getFullYear() },
   })
   expect(clsRes.ok()).toBeTruthy()
   const cls = await clsRes.json()
@@ -39,20 +40,36 @@ async function seedData(apiBase: string) {
   // Add one subject (수학)
   const subjRes = await api.post(`classes/${cls.id}/subjects`, {
     headers: authHeaders,
-    data: { name: '수학' },
+    data: { name: `수학-${suffix}` },
   })
   expect(subjRes.ok()).toBeTruthy()
 
-  // Add one student (홍길동)
-  const stuRes = await api.post(`classes/${cls.id}/students`, {
+  // Add one student account (invitation-based)
+  const studentEmail = `landing-${suffix}@example.com`
+  const stuRes = await api.post('users/students', {
     headers: authHeaders,
-    data: { name: '홍길동', student_number: 1 },
+    data: {
+      email: studentEmail,
+      name: `홍길동-${suffix}`,
+      class_id: cls.id,
+      student_number: 1,
+      birth_date: '2010-03-02',
+    },
   })
   expect(stuRes.ok()).toBeTruthy()
   const student = await stuRes.json()
+  const inviteToken = new URL(student.invite_url).searchParams.get('token')
+  expect(inviteToken).toBeTruthy()
+  const acceptRes = await api.post('auth/invitations/accept', {
+    data: {
+      token: inviteToken,
+      password: 'password123',
+    },
+  })
+  expect(acceptRes.ok()).toBeTruthy()
 
   await api.dispose()
-  const classLabel = `${now.getFullYear()}학년도 1학년 1반`
+  const classLabel = `${now.getFullYear()}학년도 1학년 1반-${suffix}`
   return { studentId: student.id, classLabel }
 }
 
@@ -65,8 +82,8 @@ test('랜딩 → 로그인 → 성적 입력 후 저장', async ({ page, baseURL
   await page.getByRole('button', { name: /login/i }).click()
 
   // 2) 로그인 수행
-  await page.getByPlaceholder('Email').fill('teacher@example.com')
-  await page.getByPlaceholder('Password').fill('password123')
+  await page.getByPlaceholder('이메일').fill('teacher@example.com')
+  await page.getByPlaceholder('비밀번호').fill('password123')
   await page.getByRole('button', { name: '로그인' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
   await expect(page.getByRole('heading', { name: '대시보드' })).toBeVisible()
