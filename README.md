@@ -90,6 +90,36 @@ GitHub Actions 워크플로는 다음을 실행합니다.
 
 워크플로 파일: `.github/workflows/ci.yml`
 
+## CD (Production Deploy)
+
+이 저장소는 `CI 성공 -> CD 배포` 흐름을 사용합니다.
+
+- CD 워크플로 파일: `.github/workflows/cd.yml`
+- 자동 배포 트리거: `CI` 워크플로가 `main/master`에서 성공 종료될 때
+- 수동 배포 트리거: GitHub Actions `CD`의 `workflow_dispatch` (staging/production 선택 가능)
+
+기본 배포 대상:
+
+- frontend: Vercel
+- backend: Render
+- db: Supabase (외부 managed DB)
+
+필수 GitHub Secrets:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `RENDER_DEPLOY_HOOK_URL` (권장)  
+  Render Deploy Hook이 없으면 아래 2개를 대신 사용:
+  `RENDER_API_KEY`, `RENDER_SERVICE_ID`
+- `BACKEND_HEALTHCHECK_URL` (권장, 예: `https://<backend>/ready`)
+- `FRONTEND_HEALTHCHECK_URL` (선택)
+
+권장 설정:
+
+- GitHub Environment: `production` (+ 필요 시 `staging`)
+- `production`에 required reviewers 설정
+
 ## Docs
 
 - PRD: `docs/prd.md`
