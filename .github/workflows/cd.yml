@@ -98,10 +98,15 @@ jobs:
           npx vercel build --prod --token="$VERCEL_TOKEN"
           npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
 
-      - name: Frontend smoke check
-        if: ${{ secrets.FRONTEND_HEALTHCHECK_URL != '' }}
+      - name: Frontend smoke check (optional)
+        env:
+          FRONTEND_HEALTHCHECK_URL: ${{ secrets.FRONTEND_HEALTHCHECK_URL }}
         run: |
-          curl --fail --show-error --silent "${{ secrets.FRONTEND_HEALTHCHECK_URL }}"
+          if [ -n "${FRONTEND_HEALTHCHECK_URL:-}" ]; then
+            curl --fail --show-error --silent "$FRONTEND_HEALTHCHECK_URL"
+          else
+            echo "Skipping frontend smoke check (FRONTEND_HEALTHCHECK_URL is not set)."
+          fi
 
   deploy-backend:
     needs: prepare
@@ -114,30 +119,32 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.deploy_sha }}
 
-      - name: Trigger backend deploy (Render Deploy Hook)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
-        run: |
-          curl --fail --show-error --silent --request POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-
-      - name: Trigger backend deploy (Render API fallback)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL == '' }}
+      - name: Trigger backend deploy
         env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          test -n "$RENDER_API_KEY" || (echo "Missing secret: RENDER_API_KEY (or set RENDER_DEPLOY_HOOK_URL)" && exit 1)
-          test -n "$RENDER_SERVICE_ID" || (echo "Missing secret: RENDER_SERVICE_ID (or set RENDER_DEPLOY_HOOK_URL)" && exit 1)
-          curl --fail --show-error --silent \
-            --request POST \
-            --url "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
-            --header "accept: application/json" \
-            --header "authorization: Bearer $RENDER_API_KEY"
+          if [ -n "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+            curl --fail --show-error --silent --request POST "$RENDER_DEPLOY_HOOK_URL"
+          else
+            test -n "$RENDER_API_KEY" || (echo "Missing secret: RENDER_API_KEY (or set RENDER_DEPLOY_HOOK_URL)" && exit 1)
+            test -n "$RENDER_SERVICE_ID" || (echo "Missing secret: RENDER_SERVICE_ID (or set RENDER_DEPLOY_HOOK_URL)" && exit 1)
+            curl --fail --show-error --silent \
+              --request POST \
+              --url "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+              --header "accept: application/json" \
+              --header "authorization: Bearer $RENDER_API_KEY"
+          fi
 
-      - name: Backend readiness check
-        if: ${{ secrets.BACKEND_HEALTHCHECK_URL != '' }}
+      - name: Backend readiness check (optional)
         env:
           BACKEND_HEALTHCHECK_URL: ${{ secrets.BACKEND_HEALTHCHECK_URL }}
         run: |
+          if [ -z "${BACKEND_HEALTHCHECK_URL:-}" ]; then
+            echo "Skipping backend readiness check (BACKEND_HEALTHCHECK_URL is not set)."
+            exit 0
+          fi
           for i in $(seq 1 30); do
             if curl --fail --show-error --silent "$BACKEND_HEALTHCHECK_URL"; then
               exit 0
