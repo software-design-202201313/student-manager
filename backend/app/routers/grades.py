@@ -13,7 +13,11 @@ from app.models.subject import Subject
 from app.models.user import User
 from app.schemas.grade import GradeCreate, GradeResponse, GradeSummaryResponse
 from app.services.grade import create_grade, list_grades, update_grade, get_grade_summary
-from app.services.notification import create_notification, build_grade_notification_message
+from app.services.notification import (
+    create_notification,
+    build_grade_notification_message,
+    get_student_and_parent_recipient_ids,
+)
 
 router = APIRouter(prefix="/grades", tags=["grades"]) 
 
@@ -21,7 +25,6 @@ router = APIRouter(prefix="/grades", tags=["grades"])
 async def _create_grade_notification(
     db: AsyncSession,
     *,
-    teacher: User,
     student_id: uuid.UUID,
     subject_id: uuid.UUID,
 ):
@@ -29,18 +32,25 @@ async def _create_grade_notification(
     student_row = student_result.first()
     student_name = student_row[1].name if student_row else '학생'
 
+    student_recipient_id, parent_recipient_ids = await get_student_and_parent_recipient_ids(
+        db,
+        student_id=student_id,
+    )
+    recipient_ids = [recipient_id for recipient_id in [student_recipient_id, *parent_recipient_ids] if recipient_id is not None]
+
     subject_result = await db.execute(select(Subject).where(Subject.id == subject_id))
     subject = subject_result.scalar_one_or_none()
     subject_name = subject.name if subject else '과목'
 
-    await create_notification(
-        db,
-        recipient_id=teacher.id,
-        type="grade_input",
-        message=build_grade_notification_message(student_name, subject_name),
-        related_id=student_id,
-        related_type="grade",
-    )
+    for recipient_id in dict.fromkeys(recipient_ids):
+        await create_notification(
+            db,
+            recipient_id=recipient_id,
+            type="grade_input",
+            message=build_grade_notification_message(student_name, subject_name),
+            related_id=student_id,
+            related_type="grade",
+        )
     await db.commit()
 
 
@@ -61,7 +71,6 @@ async def create_grade_endpoint(
     )
     await _create_grade_notification(
         db,
-        teacher=current_user,
         student_id=grade.student_id,
         subject_id=grade.subject_id,
     )
@@ -90,7 +99,6 @@ async def update_grade_endpoint(
     )
     await _create_grade_notification(
         db,
-        teacher=current_user,
         student_id=grade.student_id,
         subject_id=grade.subject_id,
     )
