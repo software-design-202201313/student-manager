@@ -190,7 +190,7 @@ async def test_list_students_includes_invitation_summary(
 ):
     cls = await _create_class(seed_teacher, name="3-1")
 
-    pending_res = await auth_client_teacher.post(
+    create_pending_res = await auth_client_teacher.post(
         "/api/v1/users/students",
         json={
             "email": "pending-student@test.com",
@@ -199,6 +199,7 @@ async def test_list_students_includes_invitation_summary(
             "student_number": 1,
         },
     )
+    assert create_pending_res.status_code == 201
     accepted_res = await auth_client_teacher.post(
         "/api/v1/users/students",
         json={
@@ -208,7 +209,8 @@ async def test_list_students_includes_invitation_summary(
             "student_number": 2,
         },
     )
-    expired_res = await auth_client_teacher.post(
+    assert accepted_res.status_code == 201
+    create_expired_res = await auth_client_teacher.post(
         "/api/v1/users/students",
         json={
             "email": "expired-student@test.com",
@@ -217,6 +219,7 @@ async def test_list_students_includes_invitation_summary(
             "student_number": 3,
         },
     )
+    assert create_expired_res.status_code == 201
 
     accepted_token = accepted_res.json()["invite_url"].split("token=")[1]
     accept_res = await client.post(
