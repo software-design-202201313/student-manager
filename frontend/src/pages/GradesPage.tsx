@@ -154,17 +154,35 @@ export default function GradesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <OverviewCard title="총점" value={summary.total != null ? summary.total.toFixed(1) : '-'} />
-        <OverviewCard title="평균" value={summary.average != null ? summary.average.toFixed(1) : '-'} />
-        <OverviewCard title="입력 과목 수" value={summary.filledCount} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <NumberCard title="총점" value={summary.total != null ? summary.total.toFixed(1) : '-'} />
+        <NumberCard title="평균" value={summary.average != null ? summary.average.toFixed(1) : '-'} />
+        <NumberCard title="입력 과목 수" value={summary.filledCount} />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <OverviewCard title="최고 과목" value={analysis ? `${analysis.top.subject.name} ${analysis.top.score.toFixed(0)}` : '-'} />
-        <OverviewCard title="보완 과목" value={analysis ? `${analysis.bottom.subject.name} ${analysis.bottom.score.toFixed(0)}` : '-'} />
-        <OverviewCard title="우수 과목" value={analysis?.strengths.length ? analysis.strengths.join(', ') : '-'} />
-        <OverviewCard title="집중 관리" value={analysis?.attention.length ? analysis.attention.join(', ') : '-'} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <SubjectScoreCard 
+          title="최고 과목" 
+          subjectName={analysis?.top.subject.name || '-'} 
+          score={analysis?.top.score != null ? analysis.top.score.toFixed(0) : '-'} 
+          type="top" 
+        />
+        <SubjectScoreCard 
+          title="보완 과목" 
+          subjectName={analysis?.bottom.subject.name || '-'} 
+          score={analysis?.bottom.score != null ? analysis.bottom.score.toFixed(0) : '-'} 
+          type="bottom" 
+        />
+        <SubjectListCard 
+          title="우수 과목" 
+          subjects={analysis?.strengths || []} 
+          type="good" 
+        />
+        <SubjectListCard 
+          title="집중 관리" 
+          subjects={analysis?.attention || []} 
+          type="bad" 
+        />
       </div>
 
       <div className="flex gap-2">
@@ -243,11 +261,68 @@ export default function GradesPage() {
   );
 }
 
-function OverviewCard({ title, value }: { title: string; value: string | number }) {
+function NumberCard({ title, value }: { title: string; value: string | number }) {
+  const strVal = String(value);
+  const parts = strVal.split('.');
+  const hasDecimal = parts.length > 1 && parts[1] !== undefined;
+
   return (
-    <div className="rounded border p-3">
-      <div className="text-sm text-gray-600">{title}</div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
+    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden h-full flex flex-col justify-between">
+      <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 rounded-l-xl opacity-80" />
+      <div className="text-sm font-medium text-gray-500 mb-2 pl-2">{title}</div>
+      <div className="text-3xl font-bold text-gray-900 tracking-tight pl-2">
+        {parts[0]}
+        {hasDecimal && <span className="text-xl text-gray-400 font-medium tracking-normal">.{parts[1]}</span>}
+      </div>
+    </div>
+  );
+}
+
+function SubjectScoreCard({ title, subjectName, score, type }: { title: string; subjectName: string; score: number | string; type?: 'top' | 'bottom' }) {
+  const isTop = type === 'top';
+  
+  if (!subjectName || subjectName === '-') {
+    return (
+      <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm h-full flex flex-col justify-between group">
+        <div className="text-sm font-medium text-gray-500">{title}</div>
+        <div className="mt-2 text-xl font-semibold text-gray-300">-</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md transition-transform hover:-translate-y-1 h-full flex flex-col justify-between group">
+      <div className="text-sm font-medium text-gray-500">{title}</div>
+      <div className="mt-5 flex items-end justify-between">
+        <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-bold ${isTop ? 'bg-blue-50 text-blue-700' : 'bg-rose-50 text-rose-700'}`}>
+          {subjectName}
+        </span>
+        <div className="text-3xl font-bold tracking-tight text-gray-900">
+          {score}
+          <span className="text-sm font-medium text-gray-400 ml-1 tracking-normal">점</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SubjectListCard({ title, subjects, type }: { title: string; subjects: string[]; type?: 'good' | 'bad' }) {
+  const isGood = type === 'good';
+  
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col group">
+      <div className="text-sm font-medium text-gray-500 mb-4">{title}</div>
+      {subjects.length > 0 ? (
+        <div className="flex flex-wrap gap-2 mt-auto">
+          {subjects.map((sub) => (
+            <span key={sub} className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm ${isGood ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+              {sub}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-auto text-sm text-gray-300 font-medium">-</div>
+      )}
     </div>
   );
 }
