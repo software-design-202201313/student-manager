@@ -2,12 +2,12 @@ import { useAuthStore } from '../../stores/authStore';
 import { logout } from '../../api/auth';
 import NotificationBell from '../notifications/NotificationBell';
 
-export default function Header({ 
-  onToggleMobile, 
-  onToggleDesktop 
-}: { 
-  onToggleMobile: () => void;
-  onToggleDesktop: () => void;
+export default function Header({
+  onToggleMobile = () => {},
+  onToggleDesktop = () => {},
+}: {
+  onToggleMobile?: () => void;
+  onToggleDesktop?: () => void;
 }) {
   const user = useAuthStore((s) => s.user);
   const doLogout = useAuthStore((s) => s.logout);
