@@ -150,7 +150,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 pt-6 md:pt-10 pb-12 min-h-[calc(100vh-76px)] flex flex-col items-center justify-center">
+      <main className="max-w-6xl mx-auto px-6 pt-16 md:pt-24 pb-12 min-h-[calc(100vh-76px)] flex flex-col items-center justify-center">
         {/* Hero Section */}
         <section className="text-center max-w-3xl mx-auto mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900 leading-[1.15] whitespace-pre-wrap mb-4">
@@ -172,22 +172,22 @@ export default function LandingPage() {
         {/* Features Carousel Section */}
         <section 
           ref={sectionRef}
-          className={`w-full relative max-w-4xl mx-auto transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'}`}
+          className={`w-full relative max-w-3xl mx-auto transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'}`}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
           {/* Main Viewport */}
-          <div className="overflow-hidden rounded-3xl shadow-sm border border-gray-100 bg-white">
+          <div className="overflow-hidden">
             <div 
               className="flex transition-transform duration-700 ease-in-out w-[400%]"
               style={{ transform: `translateX(-${currentIndex * 25}%)` }}
             >
               
               {/* Card 1: Grade Management */}
-              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
-                <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature1_title}</h3>
-                <p className="text-gray-500 text-center mb-8 max-w-md">{t.feature1_desc}</p>
-                <div className={`w-full max-w-md h-64 relative transition-transform duration-500 ${isHovered && currentIndex === 0 ? 'scale-105' : 'scale-100'}`}>
+              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
+                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature1_title}</h3>
+                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature1_desc}</p>
+                <div className={`w-full max-w-md h-56 relative transition-transform duration-500 ${isHovered && currentIndex === 0 ? 'scale-105' : 'scale-100'}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="80%" data={lang === 'ko' ? radarData : radarDataEn}>
                       <PolarGrid stroke="#e5e7eb" />
@@ -200,11 +200,11 @@ export default function LandingPage() {
               </div>
 
               {/* Card 2: Student Records */}
-              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
-                <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature2_title}</h3>
-                <p className="text-gray-500 text-center mb-10 max-w-md">{t.feature2_desc}</p>
+              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
+                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature2_title}</h3>
+                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature2_desc}</p>
                 
-                <div className={`w-full max-w-sm bg-gray-50 rounded-2xl p-6 border border-gray-100 transition-all duration-500 ${isHovered && currentIndex === 1 ? 'scale-105 shadow-md border-blue-100' : 'scale-100'}`}>
+                <div className={`w-full max-w-xs bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all duration-500 ${isHovered && currentIndex === 1 ? 'scale-105 shadow-md border-blue-100' : 'scale-100'}`}>
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">MK</div>
                     <div>
@@ -226,11 +226,11 @@ export default function LandingPage() {
               </div>
 
               {/* Card 3: Feedback */}
-              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
-                <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature3_title}</h3>
-                <p className="text-gray-500 text-center mb-10 max-w-md">{t.feature3_desc}</p>
+              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
+                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature3_title}</h3>
+                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature3_desc}</p>
 
-                <div className={`flex flex-col gap-4 w-full max-w-sm transition-transform duration-500 ${isHovered && currentIndex === 2 ? 'scale-105' : 'scale-100'}`}>
+                <div className={`flex flex-col gap-3 w-full max-w-xs transition-transform duration-500 ${isHovered && currentIndex === 2 ? 'scale-105' : 'scale-100'}`}>
                     <div className="px-5 py-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 font-medium flex justify-between items-center shadow-sm">
                       {t.feature3_badge1}
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -247,11 +247,11 @@ export default function LandingPage() {
               </div>
 
               {/* Card 4: Counseling */}
-              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
-                <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature4_title}</h3>
-                <p className="text-gray-500 text-center mb-10 max-w-md">{t.feature4_desc}</p>
+              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
+                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature4_title}</h3>
+                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature4_desc}</p>
 
-                <div className={`w-full max-w-sm space-y-4 transition-transform duration-500 ${isHovered && currentIndex === 3 ? 'scale-105' : 'scale-100'}`}>
+                <div className={`w-full max-w-xs space-y-3 transition-transform duration-500 ${isHovered && currentIndex === 3 ? 'scale-105' : 'scale-100'}`}>
                   {/* Bubble 1 */}
                   <div className="flex gap-3 items-end">
                     <div className="w-8 h-8 rounded-full bg-blue-200 flex-shrink-0 mb-1"></div>
