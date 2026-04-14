@@ -150,13 +150,13 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 pt-24 pb-32">
+      <main className="max-w-6xl mx-auto px-6 pt-6 md:pt-10 pb-12 min-h-[calc(100vh-76px)] flex flex-col items-center justify-center">
         {/* Hero Section */}
-        <section className="text-center max-w-3xl mx-auto mb-32 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1] whitespace-pre-wrap mb-6">
+        <section className="text-center max-w-3xl mx-auto mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900 leading-[1.15] whitespace-pre-wrap mb-4">
             {t.headline}
           </h1>
-          <p className="text-lg md:text-xl text-gray-500 mb-10 whitespace-pre-wrap leading-relaxed">
+          <p className="text-sm md:text-base text-gray-500 mb-6 whitespace-pre-wrap leading-relaxed">
             {t.desc}
           </p>
           <div className="flex justify-center">
@@ -172,7 +172,7 @@ export default function LandingPage() {
         {/* Features Carousel Section */}
         <section 
           ref={sectionRef}
-          className={`relative max-w-4xl mx-auto transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'}`}
+          className={`w-full relative max-w-4xl mx-auto transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'}`}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -184,7 +184,7 @@ export default function LandingPage() {
             >
               
               {/* Card 1: Grade Management */}
-              <div className="w-1/4 p-8 md:p-12 flex flex-col items-center justify-center min-h-[450px]">
+              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
                 <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature1_title}</h3>
                 <p className="text-gray-500 text-center mb-8 max-w-md">{t.feature1_desc}</p>
                 <div className={`w-full max-w-md h-64 relative transition-transform duration-500 ${isHovered && currentIndex === 0 ? 'scale-105' : 'scale-100'}`}>
@@ -200,7 +200,7 @@ export default function LandingPage() {
               </div>
 
               {/* Card 2: Student Records */}
-              <div className="w-1/4 p-8 md:p-12 flex flex-col items-center justify-center min-h-[450px]">
+              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
                 <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature2_title}</h3>
                 <p className="text-gray-500 text-center mb-10 max-w-md">{t.feature2_desc}</p>
                 
@@ -226,7 +226,7 @@ export default function LandingPage() {
               </div>
 
               {/* Card 3: Feedback */}
-              <div className="w-1/4 p-8 md:p-12 flex flex-col items-center justify-center min-h-[450px]">
+              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
                 <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature3_title}</h3>
                 <p className="text-gray-500 text-center mb-10 max-w-md">{t.feature3_desc}</p>
 
@@ -247,7 +247,7 @@ export default function LandingPage() {
               </div>
 
               {/* Card 4: Counseling */}
-              <div className="w-1/4 p-8 md:p-12 flex flex-col items-center justify-center min-h-[450px]">
+              <div className="w-1/4 p-5 md:p-8 flex flex-col items-center justify-center min-h-[320px]">
                 <h3 className="font-bold text-3xl text-gray-900 mb-3">{t.feature4_title}</h3>
                 <p className="text-gray-500 text-center mb-10 max-w-md">{t.feature4_desc}</p>
 
