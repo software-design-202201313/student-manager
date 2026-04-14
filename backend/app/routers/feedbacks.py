@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import require_role
 from app.dependencies.db import get_db
-from app.models.parent_student import ParentStudent
 from app.models.student import Student
 from app.models.user import User
 from app.schemas.feedback import FeedbackCreate, FeedbackResponse
@@ -17,7 +16,11 @@ from app.services.feedback import (
     list_feedbacks_for_teacher,
     update_feedback,
 )
-from app.services.notification import create_notification, build_feedback_notification_message
+from app.services.notification import (
+    create_notification,
+    build_feedback_notification_message,
+    get_student_and_parent_recipient_ids,
+)
 
 router = APIRouter(prefix="/feedbacks", tags=["feedbacks"]) 
 
@@ -25,7 +28,6 @@ router = APIRouter(prefix="/feedbacks", tags=["feedbacks"])
 async def _create_feedback_notifications(
     db: AsyncSession,
     *,
-    teacher: User,
     student_id: uuid.UUID,
     category: str,
     visible_to_student: bool,
@@ -36,15 +38,17 @@ async def _create_feedback_notifications(
     student, student_user = student_row if student_row else (None, None)
     student_name = student_user.name if student_user else '학생'
 
-    recipients = {teacher.id}
-    if student is not None and visible_to_student:
-      recipients.add(student.user_id)
+    student_recipient_id, parent_recipient_ids = await get_student_and_parent_recipient_ids(
+        db,
+        student_id=student_id,
+    )
+    recipients: list[uuid.UUID] = []
+    if visible_to_student and student_recipient_id is not None:
+        recipients.append(student_recipient_id)
+    if visible_to_parent:
+        recipients.extend(parent_recipient_ids)
 
-    if visible_to_parent and student is not None:
-        parent_rows = await db.execute(select(ParentStudent.parent_id).where(ParentStudent.student_id == student.id))
-        recipients.update(parent_id for parent_id in parent_rows.scalars().all())
-
-    for recipient_id in recipients:
+    for recipient_id in dict.fromkeys(recipients):
         await create_notification(
             db,
             recipient_id=recipient_id,
@@ -74,7 +78,6 @@ async def create_feedback_endpoint(
     )
     await _create_feedback_notifications(
         db,
-        teacher=current_user,
         student_id=fb.student_id,
         category=fb.category,
         visible_to_student=fb.is_visible_to_student,

@@ -80,7 +80,14 @@ test.describe('성적 관리 UI', () => {
     await expect(page.getByText('점수는 0에서 100 사이여야 합니다.')).toBeVisible()
 
     await firstScoreInput.fill('95')
-    await expect(page.getByText('95.0')).toBeVisible()
+    const totalCard = page.locator('div.rounded.border.p-3').filter({
+      has: page.getByText('총점', { exact: true }),
+    }).first()
+    const averageCard = page.locator('div.rounded.border.p-3').filter({
+      has: page.getByText('평균', { exact: true }),
+    }).first()
+    await expect(totalCard.locator('div.mt-1.text-2xl.font-semibold')).toHaveText('95.0')
+    await expect(averageCard.locator('div.mt-1.text-2xl.font-semibold')).toHaveText('95.0')
 
     // 저장 버튼 활성화 후 클릭 -> POST /grades 발생
     const saveBtn = page.getByRole('button', { name: '성적 저장' })
@@ -94,6 +101,6 @@ test.describe('성적 관리 UI', () => {
     const chartPath = page.locator('svg path').first()
     await expect(chartPath).toHaveAttribute('d', /.+/)
     await page.getByLabel('이전 학기와 비교').check()
-    await expect(page.getByText('이전 학기')).toBeVisible()
+    await expect(page.getByText('이전 학기', { exact: true })).toBeVisible()
   })
 })

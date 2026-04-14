@@ -24,6 +24,6 @@ def test_build_feedback_notification_message_uses_category_label():
 
 
 def test_build_counseling_notification_message_uses_fallback_name():
-    message = build_counseling_notification_message(None)
+    message = build_counseling_notification_message(None, None)
 
-    assert message == "학생 · 상담 기록이 업데이트되었어요."
+    assert message == "교사님이 학생 학생 상담 내역을 공유했습니다."

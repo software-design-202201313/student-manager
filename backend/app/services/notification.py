@@ -4,8 +4,11 @@ import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.parent_student import ParentStudent
 from app.models.notification import Notification
 from app.models.notification_preference import NotificationPreference
+from app.models.student import Student
+from app.models.user import User
 
 
 _GENERATED_NAME_SUFFIX_RE = re.compile(r"-notify-\d{10,}-[a-z0-9]+$", re.IGNORECASE)
@@ -40,9 +43,43 @@ def build_feedback_notification_message(student_name: str | None, category: str 
     return f"{student_label} · {category_label} 피드백이 등록되었어요."
 
 
-def build_counseling_notification_message(student_name: str | None) -> str:
+def build_counseling_notification_message(teacher_name: str | None, student_name: str | None) -> str:
+    teacher_label = clean_notification_label(teacher_name, fallback="교사")
     student_label = clean_notification_label(student_name, fallback="학생")
-    return f"{student_label} · 상담 기록이 업데이트되었어요."
+    return f"{teacher_label}님이 {student_label} 학생 상담 내역을 공유했습니다."
+
+
+async def get_student_and_parent_recipient_ids(
+    db: AsyncSession,
+    *,
+    student_id: uuid.UUID,
+) -> tuple[uuid.UUID | None, list[uuid.UUID]]:
+    student_result = await db.execute(select(Student.user_id).where(Student.id == student_id))
+    student_user_id = student_result.scalar_one_or_none()
+
+    parent_result = await db.execute(
+        select(ParentStudent.parent_id).where(ParentStudent.student_id == student_id)
+    )
+    parent_ids = list(parent_result.scalars().all())
+
+    return student_user_id, parent_ids
+
+
+async def get_peer_teacher_recipient_ids(
+    db: AsyncSession,
+    *,
+    school_id: uuid.UUID,
+    exclude_teacher_id: uuid.UUID,
+) -> list[uuid.UUID]:
+    result = await db.execute(
+        select(User.id)
+        .where(
+            User.school_id == school_id,
+            User.role == "teacher",
+            User.id != exclude_teacher_id,
+        )
+    )
+    return list(result.scalars().all())
 
 
 async def create_notification(

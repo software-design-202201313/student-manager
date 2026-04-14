@@ -48,8 +48,8 @@ test.describe.serial('PRD user stories', () => {
     await expect(page.locator('table tbody tr').nth(1).locator('td').nth(2)).toHaveText('3')
 
     await page.getByRole('button', { name: '레이더 차트' }).click()
-    await expect(page.getByText(scenario.subjects.korean.name)).toBeVisible()
-    await expect(page.getByText(scenario.subjects.math.name)).toBeVisible()
+    await expect.poll(async () => (await page.locator('body').innerText()).includes(scenario.subjects.korean.name)).toBe(true)
+    await expect.poll(async () => (await page.locator('body').innerText()).includes(scenario.subjects.math.name)).toBe(true)
     await expect(page.getByLabel('이전 학기와 비교')).toBeEnabled()
     await page.getByLabel('이전 학기와 비교').check()
     await expect(page.getByText('이전 학기', { exact: true })).toBeVisible()

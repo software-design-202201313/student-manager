@@ -132,6 +132,7 @@ describe('NotificationsPage', () => {
     await waitFor(() => expect(screen.getByText('1 / 2')).toBeInTheDocument());
 
     await user.click(screen.getByLabelText('성적 입력 알림'));
+    await user.click(screen.getByRole('button', { name: '설정 저장' }));
 
     await waitFor(() => expect(updatePreferencesMock).toHaveBeenCalled());
     expect(updatePreferencesMock.mock.calls[0][0]).toEqual({

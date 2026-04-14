@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import SignupPage from './pages/SignupPage';
@@ -23,6 +24,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 function App() {
   return (
     <>
+      <SpeedInsights />
       <Toaster position="top-right" />
       <Routes>
       <Route path="/" element={<RootIndex /> } />

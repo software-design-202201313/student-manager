@@ -117,7 +117,6 @@ describe('StudentHomePage', () => {
 
     await waitFor(() => expect(listMyFeedbacksMock).toHaveBeenCalled());
     expect(listMyFeedbacksMock.mock.calls[0]).toEqual([]);
-    expect(screen.getByText('피드백 6')).toBeInTheDocument();
 
     await user.click(screen.getByLabelText(/이전 학기와 비교/));
     await waitFor(() => expect(screen.getByText('비교 데이터 1')).toBeInTheDocument());
@@ -125,5 +124,8 @@ describe('StudentHomePage', () => {
     await user.selectOptions(screen.getByRole('combobox'), 'sem2');
     await waitFor(() => expect(screen.getAllByText('89.0').length).toBeGreaterThanOrEqual(2));
     expect(getMyGradeSummaryMock).toHaveBeenCalledWith({ semester_id: 'sem2' });
+
+    await user.click(screen.getByRole('button', { name: '공개된 피드백' }));
+    expect(screen.getByText('피드백 6')).toBeInTheDocument();
   });
 });

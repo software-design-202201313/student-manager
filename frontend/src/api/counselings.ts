@@ -10,7 +10,7 @@ export async function listCounselings(params?: {
   include_shared?: boolean;
 }): Promise<Counseling[]> {
   const { data } = await apiClient.get<Counseling[]>('/counselings', {
-    params,
+    params: params ?? {},
   });
   return data;
 }

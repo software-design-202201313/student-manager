@@ -28,7 +28,7 @@ export default function StudentHomePage() {
   }, [semesters, semesterId]);
 
   // Subjects for my class (read-only)
-  const { data: subjects } = useQuery({
+  const { data: subjects, isFetched: isMySubjectsFetched } = useQuery({
     queryKey: ['my', 'subjects'],
     queryFn: () => listMySubjects(),
     enabled: !!myStudent,
@@ -37,7 +37,7 @@ export default function StudentHomePage() {
   const { data: classSubjects } = useQuery<Subject[]>({
     queryKey: ['class-subjects', myStudent?.class_id],
     queryFn: () => listSubjects(myStudent!.class_id),
-    enabled: !!myStudent && (!subjects || subjects.length === 0),
+    enabled: !!myStudent && isMySubjectsFetched && (!subjects || subjects.length === 0),
   });
   const subjectsForDisplay: Subject[] = useMemo(() => (subjects && subjects.length > 0 ? subjects : (classSubjects ?? [])), [subjects, classSubjects]);
 
@@ -108,6 +108,10 @@ export default function StudentHomePage() {
 
   return (
     <div className="space-y-4">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold text-gray-900">학생 대시보드</h1>
+        <p className="text-sm text-gray-600">학기별 성적, 공개된 피드백, 출결 요약을 확인하세요.</p>
+      </header>
 
       {/* Header / Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

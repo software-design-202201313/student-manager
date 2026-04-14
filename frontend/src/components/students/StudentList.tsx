@@ -143,9 +143,6 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
           {s.name}
         </button>
       </td>
-      <td className="p-2 border text-center">
-        <InvitationStatusBadge status={effectiveInviteStatus} sentAt={s.invite_sent_at ?? null} />
-      </td>
       <td className="p-2 border text-center">{genderLabel(detail?.gender)}</td>
       <td className="p-2 border text-center">
         <select
@@ -201,15 +198,18 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
             </button>
           ) : (
             <>
-              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(false)}>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50" disabled={disableInviteActions || isResending} onClick={() => void handleResend(false)}>
                 재전송
               </button>
-              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(true)}>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50" disabled={disableInviteActions || isResending} onClick={() => void handleResend(true)}>
                 링크 복사
               </button>
             </>
           )}
         </div>
+      </td>
+      <td className="p-2 border text-center">
+        <InvitationStatusBadge status={effectiveInviteStatus} sentAt={s.invite_sent_at ?? null} />
       </td>
     </tr>
   );
@@ -237,13 +237,13 @@ export default function StudentList({ students }: { students: StudentSummary[] }
           <tr>
             <th className="p-2 border">번호</th>
             <th className="p-2 border text-center">이름</th>
-            <th className="p-2 border">초대 상태</th>
             <th className="p-2 border">성별</th>
             <th className="p-2 border">오늘 출결</th>
             <th className="p-2 border">특이사항</th>
             <th className="p-2 border">성적</th>
             <th className="p-2 border">평균</th>
             <th className="p-2 border">빠른 액션</th>
+            <th className="p-2 border">초대 상태</th>
           </tr>
         </thead>
         <tbody>

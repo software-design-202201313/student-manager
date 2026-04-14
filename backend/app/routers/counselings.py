@@ -4,31 +4,43 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.dependencies.auth import require_role
 from app.dependencies.db import get_db
-from app.models.student import Student
 from app.models.user import User
 from app.schemas.counseling import CounselingCreate, CounselingResponse
 from app.services.counseling import create_counseling, delete_counseling, list_counselings, update_counseling
-from app.services.notification import create_notification, build_counseling_notification_message
+from app.services.notification import (
+    build_counseling_notification_message,
+    create_notification,
+    get_peer_teacher_recipient_ids,
+)
 
 router = APIRouter(prefix="/counselings", tags=["counselings"]) 
 
 
-async def _create_teacher_counseling_notification(db: AsyncSession, *, teacher: User, student_id: uuid.UUID, content: str):
+async def _create_teacher_counseling_notification(db: AsyncSession, *, teacher: User, student_id: uuid.UUID):
+    from sqlalchemy import select
+
+    from app.models.student import Student
+
     result = await db.execute(select(Student, User).join(User, Student.user_id == User.id).where(Student.id == student_id))
     row = result.first()
     student_name = row[1].name if row else '학생'
-    await create_notification(
+    recipient_ids = await get_peer_teacher_recipient_ids(
         db,
-        recipient_id=teacher.id,
-        type="counseling_updated",
-        message=build_counseling_notification_message(student_name),
-        related_id=student_id,
-        related_type="counseling",
+        school_id=teacher.school_id,
+        exclude_teacher_id=teacher.id,
     )
+    for recipient_id in recipient_ids:
+        await create_notification(
+            db,
+            recipient_id=recipient_id,
+            type="counseling_updated",
+            message=build_counseling_notification_message(teacher.name, student_name),
+            related_id=student_id,
+            related_type="counseling",
+        )
     await db.commit()
 
 
@@ -47,12 +59,12 @@ async def create_counseling_endpoint(
         next_plan=body.next_plan,
         is_shared=body.is_shared,
     )
-    await _create_teacher_counseling_notification(
-        db,
-        teacher=current_user,
-        student_id=uuid.UUID(body.student_id),
-        content=body.content,
-    )
+    if cs.is_shared:
+        await _create_teacher_counseling_notification(
+            db,
+            teacher=current_user,
+            student_id=uuid.UUID(body.student_id),
+        )
     return CounselingResponse(
         id=str(cs.id),
         student_id=str(cs.student_id),
@@ -122,12 +134,12 @@ async def update_counseling_endpoint(
         next_plan=body.next_plan,
         is_shared=body.is_shared,
     )
-    await _create_teacher_counseling_notification(
-        db,
-        teacher=current_user,
-        student_id=cs.student_id,
-        content=body.content,
-    )
+    if cs.is_shared:
+        await _create_teacher_counseling_notification(
+            db,
+            teacher=current_user,
+            student_id=cs.student_id,
+        )
     return CounselingResponse(
         id=str(cs.id),
         student_id=str(cs.student_id),
