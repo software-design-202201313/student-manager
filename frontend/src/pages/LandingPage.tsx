@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Radar,
   RadarChart,
@@ -25,16 +25,41 @@ const radarDataEn = [
   { subject: 'History', score: 90, fullMark: 100 },
 ];
 
+function FadeInSection({ children, direction = 'up' }: { children: React.ReactNode, direction?: 'up'|'left'|'right' }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const domRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+      }
+    }, { threshold: 0.15 });
+    
+    if (domRef.current) observer.observe(domRef.current);
+    return () => observer.disconnect();
+  }, []);
+  
+  let translateClass = 'translate-y-16';
+  if (direction === 'left') translateClass = '-translate-x-16';
+  if (direction === 'right') translateClass = 'translate-x-16';
+
+  return (
+    <div
+      ref={domRef}
+      className={`transition-all duration-1000 ease-out transform ${
+        isVisible ? 'opacity-100 translate-x-0 translate-y-0' : `opacity-0 ${translateClass}`
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
   type Language = 'en' | 'ko';
   const [lang, setLang] = useState<Language>('ko');
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
-  
-  const [isVisible, setIsVisible] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('landing_lang');
@@ -45,34 +70,11 @@ export default function LandingPage() {
     localStorage.setItem('landing_lang', lang);
   }, [lang]);
 
-  // Observer for scroll animation
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold: 0.15 }
-    );
-    if (sectionRef.current) observer.observe(sectionRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  // Carousel timer
-  useEffect(() => {
-    if (isHovered || !isVisible) return; // Pause if hovered or not yet visible
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % 4);
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [isHovered, isVisible]);
-
   const t = useMemo(() => {
     if (lang === 'ko') {
       return {
         login: '로그인',
-        headline: '학생 데이터를 다루는\n가장 우아한 방법.',
+        headline: <><span className="text-blue-600">학생 데이터</span>를 다루는<br/>가장 우아한 방법.</>,
         desc: '성적, 학생부, 그리고 교사 간의 긴밀한 상담 내역까지.\n하나의 통합된 공간에서 직관적으로 관리하세요.',
         demoBtn: '데모 신청하기',
         
@@ -100,7 +102,7 @@ export default function LandingPage() {
     }
     return {
       login: 'Log in',
-      headline: 'The most elegant way\nto manage student data.',
+      headline: <><span className="text-blue-600">Student data</span><br/>managed elegantly.</>,
       desc: 'Grades, records, and precise teacher counseling workflows.\nManage everything intuitively in one unified workspace.',
       demoBtn: 'Book a demo',
       
@@ -150,44 +152,40 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 pt-16 md:pt-24 pb-12 min-h-[calc(100vh-76px)] flex flex-col items-center justify-center">
-        {/* Hero Section */}
-        <section className="text-center max-w-3xl mx-auto mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900 leading-[1.15] whitespace-pre-wrap mb-4">
-            {t.headline}
-          </h1>
-          <p className="text-sm md:text-base text-gray-500 mb-6 whitespace-pre-wrap leading-relaxed">
-            {t.desc}
-          </p>
-          <div className="flex justify-center">
-            <button
-              className="px-8 py-4 bg-gray-900 text-white rounded-full font-semibold shadow-lg hover:bg-gray-800 hover:scale-105 transition-all duration-300 transform"
-              onClick={() => window.alert('Demo booking placeholder')}
-            >
-              {t.demoBtn}
-            </button>
-          </div>
-        </section>
+      <main className="max-w-6xl mx-auto px-6">
+        
+        {/* Full Viewport Hero Section */}
+        <div className="min-h-[calc(100vh-76px)] flex items-center justify-center -mt-10">
+          <section className="text-center max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 w-full">
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-gray-900 leading-[1.2] whitespace-pre-wrap mb-6">
+              {t.headline}
+            </h1>
+            <p className="text-lg md:text-xl text-gray-500 mb-10 whitespace-pre-wrap leading-relaxed">
+              {t.desc}
+            </p>
+            <div className="flex justify-center">
+              <button
+                className="px-8 py-4 bg-gray-900 text-white rounded-full font-semibold shadow-lg hover:bg-gray-800 hover:scale-105 transition-all duration-300 transform"
+                onClick={() => window.alert('Demo booking placeholder')}
+              >
+                {t.demoBtn}
+              </button>
+            </div>
+          </section>
+        </div>
 
-        {/* Features Carousel Section */}
-        <section 
-          ref={sectionRef}
-          className={`w-full relative max-w-3xl mx-auto transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'}`}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          {/* Main Viewport */}
-          <div className="overflow-hidden">
-            <div 
-              className="flex transition-transform duration-700 ease-in-out w-[400%]"
-              style={{ transform: `translateX(-${currentIndex * 25}%)` }}
-            >
-              
-              {/* Card 1: Grade Management */}
-              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
-                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature1_title}</h3>
-                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature1_desc}</p>
-                <div className={`w-full max-w-md h-56 relative transition-transform duration-500 ${isHovered && currentIndex === 0 ? 'scale-105' : 'scale-100'}`}>
+        {/* Feature Sections Stacked & Alternating */}
+        <div className="py-20 space-y-32 mb-32">
+          
+          {/* Feature 1: Left Text, Right Visual */}
+          <FadeInSection direction="left">
+            <div className="flex flex-col md:flex-row items-center gap-12">
+              <div className="md:w-1/2 flex flex-col items-start text-left">
+                <h3 className="font-bold text-3xl md:text-4xl text-gray-900 mb-4">{t.feature1_title}</h3>
+                <p className="text-lg text-gray-500 leading-relaxed max-w-md">{t.feature1_desc}</p>
+              </div>
+              <div className="md:w-1/2 flex justify-center w-full">
+                <div className="w-full max-w-md h-64 md:h-80 hover:scale-105 transition-transform duration-500">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="80%" data={lang === 'ko' ? radarData : radarDataEn}>
                       <PolarGrid stroke="#e5e7eb" />
@@ -198,94 +196,95 @@ export default function LandingPage() {
                   </ResponsiveContainer>
                 </div>
               </div>
+            </div>
+          </FadeInSection>
 
-              {/* Card 2: Student Records */}
-              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
-                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature2_title}</h3>
-                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature2_desc}</p>
-                
-                <div className={`w-full max-w-xs bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all duration-500 ${isHovered && currentIndex === 1 ? 'scale-105 shadow-md border-blue-100' : 'scale-100'}`}>
+          {/* Feature 2: Right Text, Left Visual */}
+          <FadeInSection direction="right">
+            <div className="flex flex-col md:flex-row-reverse items-center gap-12">
+              <div className="md:w-1/2 flex flex-col items-start md:items-end text-left md:text-right">
+                <h3 className="font-bold text-3xl md:text-4xl text-gray-900 mb-4">{t.feature2_title}</h3>
+                <p className="text-lg text-gray-500 leading-relaxed max-w-md">{t.feature2_desc}</p>
+              </div>
+              <div className="md:w-1/2 flex justify-center w-full">
+                <div className="w-full max-w-sm bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-500 hover:-translate-y-2 cursor-default">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">MK</div>
-                    <div>
+                    <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl flex-shrink-0">MK</div>
+                    <div className="text-left">
                       <p className="text-lg font-bold text-gray-900">{t.feature2_name}</p>
                       <p className="text-sm text-gray-500">{t.feature2_info}</p>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                       <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                       <p className="text-sm font-medium text-gray-700">{t.feature2_stat1}</p>
                     </div>
-                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                       <div className="w-2 h-2 rounded-full bg-blue-400"></div>
                       <p className="text-sm font-medium text-gray-700">{t.feature2_stat2}</p>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </FadeInSection>
 
-              {/* Card 3: Feedback */}
-              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
-                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature3_title}</h3>
-                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature3_desc}</p>
-
-                <div className={`flex flex-col gap-3 w-full max-w-xs transition-transform duration-500 ${isHovered && currentIndex === 2 ? 'scale-105' : 'scale-100'}`}>
-                    <div className="px-5 py-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 font-medium flex justify-between items-center shadow-sm">
-                      {t.feature3_badge1}
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                    <div className="px-5 py-4 bg-indigo-50 text-indigo-800 rounded-2xl border border-indigo-100 font-medium flex justify-between items-center shadow-sm">
-                      {t.feature3_badge2}
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                    <div className="px-5 py-4 bg-amber-50 text-amber-800 rounded-2xl border border-amber-100 font-medium flex justify-between items-center shadow-sm">
-                      {t.feature3_badge3}
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
+          {/* Feature 3: Left Text, Right Visual */}
+          <FadeInSection direction="left">
+            <div className="flex flex-col md:flex-row items-center gap-12">
+              <div className="md:w-1/2 flex flex-col items-start text-left">
+                <h3 className="font-bold text-3xl md:text-4xl text-gray-900 mb-4">{t.feature3_title}</h3>
+                <p className="text-lg text-gray-500 leading-relaxed max-w-md">{t.feature3_desc}</p>
+              </div>
+              <div className="md:w-1/2 flex justify-center w-full">
+                <div className="flex flex-col gap-4 w-full max-w-sm hover:-translate-y-2 transition-transform duration-500 cursor-default">
+                  <div className="px-5 py-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 font-medium flex justify-between items-center shadow-sm">
+                    {t.feature3_badge1}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  </div>
+                  <div className="px-5 py-4 bg-indigo-50 text-indigo-800 rounded-2xl border border-indigo-100 font-medium flex justify-between items-center shadow-sm">
+                    {t.feature3_badge2}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  </div>
+                  <div className="px-5 py-4 bg-amber-50 text-amber-800 rounded-2xl border border-amber-100 font-medium flex justify-between items-center shadow-sm">
+                    {t.feature3_badge3}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  </div>
                 </div>
               </div>
+            </div>
+          </FadeInSection>
 
-              {/* Card 4: Counseling */}
-              <div className="w-1/4 p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px]">
-                <h3 className="font-bold text-2xl text-gray-900 mb-3">{t.feature4_title}</h3>
-                <p className="text-sm text-gray-500 text-center mb-6 max-w-sm">{t.feature4_desc}</p>
-
-                <div className={`w-full max-w-xs space-y-3 transition-transform duration-500 ${isHovered && currentIndex === 3 ? 'scale-105' : 'scale-100'}`}>
+          {/* Feature 4: Right Text, Left Visual */}
+          <FadeInSection direction="right">
+            <div className="flex flex-col md:flex-row-reverse items-center gap-12">
+              <div className="md:w-1/2 flex flex-col items-start md:items-end text-left md:text-right">
+                <h3 className="font-bold text-3xl md:text-4xl text-gray-900 mb-4">{t.feature4_title}</h3>
+                <p className="text-lg text-gray-500 leading-relaxed max-w-md">{t.feature4_desc}</p>
+              </div>
+              <div className="md:w-1/2 flex justify-center w-full">
+                <div className="w-full max-w-sm space-y-4 hover:-translate-y-2 transition-transform duration-500 cursor-default">
                   {/* Bubble 1 */}
                   <div className="flex gap-3 items-end">
                     <div className="w-8 h-8 rounded-full bg-blue-200 flex-shrink-0 mb-1"></div>
-                    <div className="bg-gray-100 text-gray-800 p-4 rounded-2xl rounded-bl-sm text-sm shadow-sm leading-relaxed">
+                    <div className="bg-white text-gray-800 px-5 py-4 rounded-2xl rounded-bl-sm text-sm border border-gray-100 shadow-sm leading-relaxed text-left">
                       {t.feature4_msg1}
                     </div>
                   </div>
                   {/* Bubble 2 */}
                   <div className="flex gap-3 items-end justify-end">
-                    <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-br-sm text-sm shadow-sm leading-relaxed text-right">
+                    <div className="bg-blue-600 text-white px-5 py-4 rounded-2xl rounded-br-sm text-sm shadow-sm leading-relaxed text-right">
                       {t.feature4_msg2}
                     </div>
                     <div className="w-8 h-8 rounded-full bg-indigo-200 flex-shrink-0 mb-1"></div>
                   </div>
                 </div>
               </div>
-
             </div>
-          </div>
+          </FadeInSection>
 
-          {/* Carousel Dots */}
-          <div className="flex justify-center gap-2 mt-8">
-            {[0, 1, 2, 3].map((idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentIndex(idx)}
-                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                  currentIndex === idx ? 'bg-gray-800 w-6' : 'bg-gray-300 hover:bg-gray-400'
-                }`}
-                aria-label={`Go to slide ${idx + 1}`}
-              />
-            ))}
-          </div>
-        </section>
+        </div>
       </main>
       
       {/* Footer */}
