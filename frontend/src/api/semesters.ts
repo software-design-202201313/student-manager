@@ -6,3 +6,8 @@ export async function listSemesters(): Promise<Semester[]> {
   return data;
 }
 
+export async function createSemester(body: { year: number; term: number }): Promise<Semester> {
+  const { data } = await apiClient.post<Semester>('/semesters', body);
+  return data;
+}
+
