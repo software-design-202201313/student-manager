@@ -10,12 +10,11 @@ const NAV_ITEMS = [
 
 export default function Sidebar({ onToggle }: { onToggle?: () => void }) {
   return (
-    <aside className="w-full bg-gray-100 p-4 space-y-4 h-full flex flex-col">
+    <aside className="w-full p-4 space-y-4 h-full flex flex-col">
       <div className="flex items-center justify-between px-2 pb-2">
-        <div className="font-extrabold text-xl tracking-tight text-gray-900 select-none">
+        <div className="font-extrabold text-xl tracking-tight text-gray-900 select-none whitespace-nowrap">
           ClassFlow
         </div>
-        {/* Optional close button inside sidebar - mostly for mobile, but good for UX */}
         <button onClick={onToggle} className="md:hidden text-gray-500 hover:text-gray-900 p-1">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
@@ -28,13 +27,12 @@ export default function Sidebar({ onToggle }: { onToggle?: () => void }) {
             to={to}
             end={end}
             onClick={() => {
-              // Auto close on mobile when clicking a link
               if (window.innerWidth < 768 && onToggle) {
                 onToggle();
               }
             }}
             className={({ isActive }) =>
-              `px-4 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+              `px-4 py-2.5 rounded-lg text-sm transition-colors duration-200 whitespace-nowrap ${
                 isActive 
                   ? 'bg-blue-600 text-white font-semibold shadow-sm' 
                   : 'text-gray-700 hover:bg-gray-200 font-medium'

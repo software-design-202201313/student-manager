@@ -10,11 +10,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex overflow-hidden">
       {/* Desktop sidebar */}
       <div 
-        className={`hidden md:block transition-all duration-300 ease-in-out bg-gray-100 flex-shrink-0 ${
-          desktopSidebarOpen ? 'w-56' : 'w-0'
+        className={`hidden md:block transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden bg-gray-100 ${
+          desktopSidebarOpen ? 'w-56 border-r border-gray-200' : 'w-0'
         }`}
       >
-        <div className="w-56 h-full border-r border-gray-200">
+        <div className="w-56 h-full">
           <Sidebar onToggle={() => setDesktopSidebarOpen(false)} />
         </div>
       </div>
