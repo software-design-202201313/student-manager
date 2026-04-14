@@ -25,6 +25,11 @@ export default function GradesPage() {
   const [classIdFromStudent, setClassIdFromStudent] = useState<string>('');
   const [studentName, setStudentName] = useState<string>('');
   const [latestValues, setLatestValues] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    setLatestValues({});
+  }, [semesterId, studentId]);
+
   const [compare, setCompare] = useState(false);
   const chartRef = useRef<HTMLDivElement | null>(null);
   const { data: grades } = useGrades(studentId || '', semesterId || undefined);
