@@ -201,10 +201,10 @@ function StudentRow({ s, displaySemesterId, orderedSubjectIds }: { s: StudentSum
             </button>
           ) : (
             <>
-              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(false)}>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50" disabled={disableInviteActions || isResending} onClick={() => void handleResend(false)}>
                 재전송
               </button>
-              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10" disabled={disableInviteActions || isResending} onClick={() => void handleResend(true)}>
+              <button type="button" className="rounded border px-2 py-1 text-xs relative z-10 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50" disabled={disableInviteActions || isResending} onClick={() => void handleResend(true)}>
                 링크 복사
               </button>
             </>
