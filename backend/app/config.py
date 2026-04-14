@@ -1,8 +1,20 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://localhost:5432/student_manager"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def ensure_async_driver(cls, v: str) -> str:
+        # Render (and Heroku) provide plain postgresql:// or postgres:// URLs.
+        # SQLAlchemy's asyncio extension requires the +asyncpg driver scheme.
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
     test_database_url: str = "sqlite+aiosqlite:///./test.db"
     secret_key: str = "change-me-in-production"
     algorithm: str = "HS256"
