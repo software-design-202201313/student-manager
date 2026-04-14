@@ -10,19 +10,19 @@ import {
 } from 'recharts';
 
 const radarData = [
-  { subject: '수학', score: 95, fullMark: 100 },
-  { subject: '국어', score: 88, fullMark: 100 },
-  { subject: '영어', score: 92, fullMark: 100 },
-  { subject: '과학', score: 85, fullMark: 100 },
-  { subject: '사회', score: 90, fullMark: 100 },
+  { subject: '수학', score: 95, prevScore: 82, fullMark: 100 },
+  { subject: '국어', score: 88, prevScore: 85, fullMark: 100 },
+  { subject: '영어', score: 92, prevScore: 78, fullMark: 100 },
+  { subject: '과학', score: 85, prevScore: 88, fullMark: 100 },
+  { subject: '사회', score: 90, prevScore: 84, fullMark: 100 },
 ];
 
 const radarDataEn = [
-  { subject: 'Math', score: 95, fullMark: 100 },
-  { subject: 'Korean', score: 88, fullMark: 100 },
-  { subject: 'English', score: 92, fullMark: 100 },
-  { subject: 'Science', score: 85, fullMark: 100 },
-  { subject: 'History', score: 90, fullMark: 100 },
+  { subject: 'Math', score: 95, prevScore: 82, fullMark: 100 },
+  { subject: 'Korean', score: 88, prevScore: 85, fullMark: 100 },
+  { subject: 'English', score: 92, prevScore: 78, fullMark: 100 },
+  { subject: 'Science', score: 85, prevScore: 88, fullMark: 100 },
+  { subject: 'History', score: 90, prevScore: 84, fullMark: 100 },
 ];
 
 function FadeInSection({ children, direction = 'up' }: { children: React.ReactNode, direction?: 'up'|'left'|'right' }) {
@@ -191,7 +191,8 @@ export default function LandingPage() {
                       <PolarGrid stroke="#e5e7eb" />
                       <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 13 }} />
                       <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                      <Radar name="Student A" dataKey="score" stroke="#2563eb" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} />
+                      <Radar name="Previous" dataKey="prevScore" stroke="#f97316" strokeWidth={2} strokeDasharray="3 3" fill="#fdba74" fillOpacity={0.15} />
+                      <Radar name="Current" dataKey="score" stroke="#2563eb" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
