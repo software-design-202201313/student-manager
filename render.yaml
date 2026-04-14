@@ -1,0 +1,39 @@
+databases:
+  - name: student-manager-db
+    databaseName: student_manager
+    user: sm
+    plan: free
+
+services:
+  - type: web
+    name: student-manager-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /ready
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: student-manager-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+      - key: INVITE_TOKEN_EXPIRE_HOURS
+        value: "72"
+      - key: PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: AUTH_LINK_DELIVERY
+        value: stub
+      - key: RUN_SEED
+        value: "1"
+      - key: APP_BASE_URL
+        sync: false  # Set in dashboard: your Vercel frontend URL
+      - key: ALLOWED_ORIGINS
+        sync: false  # Set in dashboard: ["https://your-vercel-url.vercel.app"]
