@@ -60,8 +60,8 @@ export default function GradesPage() {
 
     const top = [...scored].sort((left, right) => right.score - left.score)[0];
     const bottom = [...scored].sort((left, right) => left.score - right.score)[0];
-    const strengths = scored.filter((entry) => entry.score >= 90).map((entry) => entry.subject.name);
-    const attention = scored.filter((entry) => entry.score < 70).map((entry) => entry.subject.name);
+    const strengths = [...scored].filter((entry) => entry.score >= 90).sort((a, b) => b.score - a.score).slice(0, 2).map((entry) => entry.subject.name);
+    const attention = [...scored].filter((entry) => entry.score < 70).sort((a, b) => a.score - b.score).slice(0, 2).map((entry) => entry.subject.name);
     return { top, bottom, strengths, attention };
   }, [subjects, gradeMap, latestValues]);
 
