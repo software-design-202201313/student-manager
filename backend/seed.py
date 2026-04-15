@@ -6,9 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import os
 from app.database import async_session, Base, engine
+from datetime import datetime
+
 from app.models import School, User
 from app.models.subject import Subject
 from app.models.class_ import Class
+from app.models.semester import Semester
 from app.utils.security import hash_password
 
 
@@ -55,6 +58,13 @@ async def seed() -> None:
             if existing.scalars().first() is None:
                 for subj_name in DEFAULT_SUBJECTS:
                     session.add(Subject(class_id=cls.id, name=subj_name))
+
+        # Seed default semesters (current year, 1학기 & 2학기) if none exist
+        existing_sem = await session.execute(select(Semester).limit(1))
+        if existing_sem.scalar_one_or_none() is None:
+            current_year = datetime.now().year
+            session.add(Semester(year=current_year, term=1))
+            session.add(Semester(year=current_year, term=2))
 
         await session.commit()
         print("Seed complete:", {"school": school.name, "teacher": teacher.email})

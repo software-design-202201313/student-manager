@@ -30,6 +30,9 @@ async def my_students(db: AsyncSession = Depends(get_db), current_user: User = D
                 class_id=str(student.class_id),
                 student_number=student.student_number,
                 name=user.name,
+                email=user.email,
+                account_status="active" if user.is_active else "pending_invite",
+                invite_status="accepted" if user.is_active else "pending",
             )
         )
     return items

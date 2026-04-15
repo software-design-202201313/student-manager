@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getStudent } from '../api/students';
-import { listSemesters } from '../api/semesters';
+import { listSemesters, createSemester } from '../api/semesters';
 import { listSubjects } from '../api/classes';
 import { useGrades, useUpsertGrade } from '../hooks/useGrades';
 import GradeTable from '../components/grades/GradeTable';
@@ -123,10 +123,38 @@ export default function GradesPage() {
               safeSetLocal('lastSemesterId', e.target.value);
             }}
           >
+            {semesters.length === 0 && <option value="">학기 없음</option>}
             {semesters.map((sm) => (
               <option key={sm.id} value={sm.id}>{`${sm.year}년 ${sm.term}학기`}</option>
             ))}
           </select>
+          <button
+            type="button"
+            className="px-2 py-1 rounded text-xs border hover:bg-gray-50"
+            onClick={async () => {
+              const yearStr = window.prompt('연도 (예: 2026)', String(new Date().getFullYear()));
+              if (!yearStr) return;
+              const termStr = window.prompt('학기 (1 또는 2)', '1');
+              if (!termStr) return;
+              const year = Number(yearStr);
+              const term = Number(termStr);
+              if (!Number.isInteger(year) || !Number.isInteger(term) || term < 1 || term > 2) {
+                window.alert('올바른 값을 입력하세요.');
+                return;
+              }
+              try {
+                const created = await createSemester({ year, term });
+                const updated = await listSemesters();
+                setSemesters(updated);
+                setSemesterId(created.id);
+                safeSetLocal('lastSemesterId', created.id);
+              } catch (err: any) {
+                window.alert(err?.response?.data?.detail || '학기 생성 실패');
+              }
+            }}
+          >
+            + 학기 추가
+          </button>
         </div>
         <div className="flex gap-2">
           <button
