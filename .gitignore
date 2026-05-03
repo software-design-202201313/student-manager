@@ -3,7 +3,6 @@ __pycache__/
 .pytest_cache/
 
 # Dev environment
-.omc/
 .omx/
 .env
 .claude/settings.local.json
@@ -30,3 +29,5 @@ backend_uvicorn.pid
 frontend_vite.log
 frontend_vite.pid
 test.db
+.vercel
+.env*.local
