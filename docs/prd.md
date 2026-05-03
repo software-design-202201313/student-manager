@@ -1,6 +1,8 @@
 # PRD: 학생 성적 및 상담 관리 시스템 (교사용 SaaS)
 
-**버전**: 2.0  **최종 업데이트**: 2026-03-19  **상태**: 확정
+**버전**: 2.1  **최종 업데이트**: 2026-05-03  **상태**: 확정
+**v2.1 변경**: §10 OLAP·분석, §11 AI 어시스턴트(데모), §7 인프라(로컬 docker-compose 유지), §9 RISK 테이블 재구성
+**프로젝트 성격**: 졸업 평가용 과제 (로컬 프로토타입). 운영 사용자 0명. 평가 마감 2026-07-03 / 라이브 데모 + 발표.
 
 ---
 
@@ -102,6 +104,26 @@
 | REQ-051 | 알림 읽음 처리·목록 조회 | Must |
 | REQ-052 | 이메일 알림 | Could |
 
+### 분석·OLAP (v2.1 추가)
+
+| ID | 요구사항 | 우선순위 |
+|----|---------|---------|
+| REQ-070 | 운영 데이터(`public`) ↔ 분석 데이터(`analytics`) 스키마 분리 | Must |
+| REQ-071 | 운영 → 분석 이벤트 기반 적재 (Outbox + Kafka KRaft + analytics-worker consumer) | Must |
+| REQ-072 | 학생별·과목별 학습 현황 집계 테이블 | Must |
+| REQ-073 | 교사 개인용 분석 대시보드 (담당 학급 한정) | Must |
+| REQ-074 | 분석 데이터 일관성: 운영 변경 후 ≤ 1분 내 반영 | Should |
+| REQ-075 | 확장성 시연: `docker-compose --scale analytics-worker=3` 라이브 데모 | Should |
+
+### AI 어시스턴트 (v2.1 추가, 데모용)
+
+| ID | 요구사항 | 우선순위 |
+|----|---------|---------|
+| REQ-080 | 분석 요약 데이터를 컨텍스트로 LLM 호출하는 단일 엔드포인트 (`POST /api/v1/chat`) | Should |
+| REQ-081 | 교사 전용 채팅 위젯 — 자연어 질의 → 학습 현황 응답 | Should |
+| REQ-082 | 챗봇 응답 범위는 학급 단위 통계로 제한 (k≥5 실질 충족). 단일 학생 식별 가능한 응답 차단 | Must (조건부) |
+| REQ-083 | LLM 컨텍스트의 학생명·학번은 `학생A` / `seq_001` 형태로 단순 치환 마스킹 | Must (조건부) |
+
 ### 데이터 내보내기
 
 | ID | 요구사항 | 우선순위 |
@@ -123,10 +145,13 @@
 | 성적 입력→계산 표시 | ≤ 200ms (클라이언트 계산) |
 
 ### 가용성 및 신뢰성
-| 항목 | 요구값 |
+
+> 평가용 로컬 환경에서는 가용성·백업·DR 요구를 충족하지 않는다. 아래 수치는 **as-if production 설계 목표**로 명시.
+
+| 항목 | 요구값 (설계 목표) |
 |------|--------|
 | 월간 가용성 | ≥ 99.5% |
-| 데이터 백업 주기 | 매일 자동 (Supabase PITR) |
+| 데이터 백업 주기 | 매일 자동 (Postgres `pg_dump` 또는 PITR) |
 | RTO | ≤ 4시간 |
 | RPO | ≤ 24시간 |
 
@@ -157,19 +182,28 @@
 |--------|------|
 | Frontend | React 18, TypeScript, Tailwind CSS, Zustand, TanStack Query, Recharts |
 | Backend | FastAPI (Python 3.11), Pydantic v2, SQLAlchemy 2.0, Alembic |
-| Database | PostgreSQL (Supabase) |
+| Outbox Publisher | Python 3.11, aiokafka (Kafka producer) |
+| Analytics Worker | Python 3.11, aiokafka (Kafka consumer + consumer group) |
+| Chat 엔드포인트 | FastAPI 백엔드 내부 단일 라우터 (`/api/v1/chat`). LLM SDK 직접 호출 |
+| Message Stream | Apache Kafka (KRaft 단일 노드, docker-compose). **Fallback**: Redpanda |
+| Database | PostgreSQL (`public` + `analytics` + `outbox` 테이블 동일 인스턴스) |
 | Auth | JWT (python-jose + passlib bcrypt) |
 | 파일 출력 | SheetJS (Excel), jsPDF (PDF) — 클라이언트 사이드 |
-| 배포 | Vercel (FE) + Render (BE) + Supabase (DB) |
+| 배포 | **로컬 docker-compose** (FastAPI · Outbox publisher · analytics-worker · Kafka · Postgres · Frontend dev) |
 
 ### 핵심 결정사항
 
 - **멀티테넌트**: 단일 DB + `school_id` Row-Level Filtering
-- **인증**: access_token 메모리 저장, refresh_token HttpOnly Cookie
-- **알림**: 30초 폴링 (Supabase Realtime은 v2)
+- **인증**: access_token 메모리 저장, refresh_token HttpOnly Cookie (현행 유지)
+- **알림**: 30초 폴링 (Realtime push는 평가 후)
 - **성적 등급**: 원점수 기준 9등급 참고값 (석차 기반 아님)
 - **파일 생성**: 클라이언트 사이드 전용 (서버는 JSON만 제공)
-- **교사 스코핑 (MVP)**: 담임 1명 = 담당 Class 1개. 교과 교사 다중 반은 v2 (ClassTeacher M:M)
+- **교사 스코핑 (MVP)**: 담임 1명 = 담당 Class 1개. 교과 교사 다중 반은 평가 후 (ClassTeacher M:M)
+- **OLAP 분리 (v2.1)**: 동일 PG 인스턴스 내 `analytics` 스키마. 외부 DW(ClickHouse/BigQuery) 미도입
+- **CDC (v2.1)**: **Outbox 패턴 + Kafka KRaft + aiokafka publisher/consumer**. 운영 트랜잭션 안에서 outbox INSERT → publisher가 Kafka로 발행 → consumer(analytics-worker)가 `analytics.*` UPSERT. 상세는 ADR-002.
+- **인프라 (v2.1)**: 로컬 docker-compose. EKS·AWS·Helm·Terraform·External Secrets Operator 미도입 (평가 rubric에 없음 + 1인·2개월 자원 제약).
+- **확장성 (v2.1)**: 컨테이너 다이어그램 + `docker-compose --scale analytics-worker=3` 라이브 시연으로 입증. Consumer group + 파티션으로 수평 확장.
+- **AI 어시스턴트 (v2.1)**: 별도 서비스 분리하지 않음. FastAPI 단일 엔드포인트. PII는 학급 단위 통계로 답변 범위 제한 + 이름 단순 치환 마스킹.
 
 ---
 
@@ -179,9 +213,10 @@
 |------|------|
 | NEIS 등 외부 교육행정 시스템 연동 | CSV/Excel로 대체 |
 | 모바일 앱 | 웹 반응형으로 대체 |
-| 이메일 알림 | v2 |
-| 100개 이상 학교 대규모 확장 | v2 |
-| AI 기반 성적 분석·추천 | v3 |
+| 이메일 알림 | 평가 후 |
+| 클라우드 배포 (EKS/Vercel/Render 등) | 로컬 평가 환경 한정. rubric 가점 항목 아님 |
+| 100개 이상 학교 대규모 확장 | 평가 후 |
+| AI 기반 성적 분석·추천 (벡터 검색·RAG 정식 도입) | 평가 후 |
 | 학교 간 데이터 공유 | 학교 단위 완전 격리 |
 | 실시간 화상 상담, 공문 발송 | 범위 외 |
 
@@ -191,10 +226,67 @@
 
 | ID | 위험 | 영향도 | 대응 |
 |----|------|--------|------|
-| RISK-001 | 교과 교사 다중 반 담당 미지원 (MVP 제약) | 높음 | 고객 합의 필수. v2에서 ClassTeacher M:M 확장 예정 |
-| RISK-002 | 개인정보보호법 위반 (학생 PII 처리) | 매우 높음 | HTTPS 강제, 로그 PII 제외, school_id 격리 철저 |
-| RISK-003 | 성적 등급 계산 기준 오류 | 중간 | calculate_grade() 서비스 레이어 분리, 고객과 합의 완료 |
-| RISK-004 | Render cold start 지연 | 중간 | Keep-alive cron ping 설정 |
+| RISK-001 | 교과 교사 다중 반 담당 미지원 (MVP 제약) | 높음 | 평가용 시드 데이터는 담임 모델 가정. ClassTeacher M:M 확장은 평가 후 |
+| RISK-002 | 학생 PII 노출 (로그·LLM 컨텍스트·발표 데모) | 매우 높음 | 로그 PII 제외, school_id 격리, LLM 컨텍스트는 학급 단위 통계만 + 이름 마스킹 |
+| RISK-003 | 성적 등급 계산 기준 오류 | 중간 | `calculate_grade()` 서비스 레이어 분리, 9등급 cutoff 표 명시 |
+| RISK-005 | Outbox publisher 다운 → 이벤트 미발행 | 중간 | outbox row는 commit 됨. publisher 부팅 시 `WHERE sent_at IS NULL` catch-up 쿼리로 자동 복구 |
+| RISK-007 | LLM 호출 시 학생 PII 유출 | 매우 높음 | 챗봇 답변 범위를 학급 단위 통계로 제한 (k≥5). 컨텍스트의 이름·학번은 단순 치환 마스킹 (`학생A`, `seq_001`) |
+| RISK-009 | Kafka 미경험 학습 부담 (W3 PoC 위험) | 중간 | W3 금요일 PoC fail 시 **Redpanda fallback** (Kafka API 호환, publisher/consumer 코드 변경 0) |
+| RISK-010 | 라이브 데모 환경 시드/포트/볼륨 누락 | 중간 | W9 리허설 + `scripts/demo_seed.py` + `docker-compose.demo.yml` 정비 |
+| RISK-011 | 발표 시 평가자가 LISTEN/NOTIFY와 Kafka 정의 혼동 | 낮음 | 발표 슬라이드 1장에 "Outbox + Kafka KRaft" 다이어그램 명시. "Apache Kafka 호환 메시지 스트림" 표현 통일 |
+
+---
+
+## 10. OLAP & 분석 (v2.1)
+
+### 10.1 분리 정책
+- 운영 스키마 `public` + 분석 스키마 `analytics` (동일 PG 인스턴스)
+- 분석 테이블은 **읽기 전용 집계 캐시**. 운영 트랜잭션은 손대지 않음.
+
+### 10.2 분석 테이블 (요약)
+- `analytics.fact_grade_event` — Grade INSERT/UPDATE 이벤트 로그 (append-only)
+- `analytics.fact_attendance_event` — Attendance 이벤트 로그
+- `analytics.dim_student` — 학생 차원 (snapshot, daily refresh)
+- `analytics.agg_student_subject` — 학생×과목 집계 (평균·최고·최저·등급 추이)
+- `analytics.agg_student_overall` — 학생 단위 종합 지표 (학기별)
+
+### 10.3 CDC 파이프라인 (Outbox + Kafka)
+- 운영 라우터 트랜잭션 안에서 `public.outbox` row INSERT (도메인 변경과 같은 트랜잭션)
+- `outbox-publisher` 프로세스가 미발행 row(`sent_at IS NULL`)를 polling → Kafka 토픽(`grade_events` 등) 발행 → `sent_at` 업데이트
+- `analytics-worker`(Kafka consumer, consumer group)가 토픽 구독 → `analytics.*` 테이블 UPSERT (idempotent)
+- 메시지 브로커: Kafka KRaft 단일 노드 (docker-compose). Fallback: Redpanda
+- Publisher 부팅 시 `WHERE sent_at IS NULL` 쿼리로 catch-up
+- 정합성 검증: 통합 테스트 (testcontainers) + 매 commit 시 운영 row 수 vs `analytics.fact_*` row 수 비교 (`scripts/check_consistency.py`)
+- 자세한 패턴 비교/근거: ADR-002
+
+### 10.4 분석 API
+- `GET /api/v1/analytics/students/{id}/overview` — 학생 학습 요약
+- `GET /api/v1/analytics/classes/{id}/distribution` — 학급 점수 분포
+- `GET /api/v1/analytics/teachers/me/dashboard` — 교사 메인 대시보드 위젯 데이터
+- 모든 엔드포인트 RBAC 동일 (담임 한정)
+
+---
+
+## 11. AI 어시스턴트 (v2.1, 데모용)
+
+> **명명 정정**: 본 기능은 벡터 인덱싱·의미 검색이 없으므로 정식 RAG가 아니다. *"분석 데이터 기반 LLM 자연어 응답"* (이하 AI 어시스턴트)으로 통일한다.
+
+### 11.1 범위
+- 교사가 자연어로 담당 학급 학습 현황을 질의 (예: "이번 학기 수학에서 평균 이하인 학생 비율은?")
+- 분석 요약 데이터(`analytics.agg_*`)를 컨텍스트로 LLM 호출
+- 응답은 텍스트 + 선택적 학생 ID 리스트
+- 구현 예산: 약 3일 (W6)
+
+### 11.2 PII 정책
+- 챗봇 답변 범위를 **학급 단위 통계**로 제한 (k≥5 실질 충족) → 단일 학생 식별 가능 응답 차단
+- LLM 컨텍스트의 학생명·학번은 단순 치환 마스킹: `김철수 → 학생A`, `student_number=15 → seq_015`
+- 응답 후처리에서 token을 실제 학생으로 매핑 (서버 메모리)
+- 외부 LLM provider에는 마스킹된 통계만 전송
+
+### 11.3 아키텍처
+- **별도 서비스 분리하지 않음**. FastAPI 백엔드의 단일 엔드포인트 `POST /api/v1/chat`
+- LLM 호출은 단일 provider (환경변수로 OpenAI 또는 Anthropic 선택). `LLMClient` 추상화 인터페이스 도입하지 않음 (1인·평가용 환경에서 ROI 음수)
+- Rate limiting: 교사당 분당 10회 (slowapi)
 
 ---
 
