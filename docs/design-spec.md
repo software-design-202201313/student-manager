@@ -263,8 +263,6 @@ counseling_updated BOOLEAN    NOT NULL  DEFAULT true
 
 ### 3.1 인증 (Auth)
 
-> **현재 구현 기준 메모**: teacher CRUD는 `/grades`, `/feedbacks`, `/counselings`, `/notifications`에 유지되고, student/parent read-only는 `/my/*`로 분리되어 있습니다. 목록 응답은 배열 형식이 기본이며, bulk grade 입력은 `/import/*`로 처리합니다.
-
 #### POST /auth/login
 ```
 Request:
@@ -1152,12 +1150,8 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 | ID | 위험 | 영향도 | 대응 |
 |----|------|--------|------|
 | R-001 | 교과 교사 미지원 → 담임이 모든 과목 성적 입력 | 높음 | **고객 합의 필수**. 합의 없으면 MVP 운영 불가. |
-| R-002 | Render cold start → 첫 API 응답 30초 지연 | 높음 | Keep-alive cron ping. 데모 전 사전 워밍. |
-| R-003 | 성적 등급 계산 기준 (원점수 vs 석차백분율) | 높음 | 서비스 레이어 calculate_grade() 함수 분리. 고객과 Sprint 0 종료 전 합의. |
-| R-004 | CSV 가져오기 컬럼 매핑 미정 | 중간 | Sprint 2 전 표준 템플릿 확정 (docs/csv-templates/ 작성). |
 | R-005 | 상담 공유 시 알림 폭탄 (교사 수 × 알림) | 중간 | MVP 규모(학교당 교사 10~30명)에서 허용. v2에서 수신자 선택 기능 추가. |
 | R-006 | 학생 반 이동 시 이전 담임 데이터 접근 불가 | 낮음 | MVP에서는 반 이동 이력 없음. 이동 전 담임이 필요한 데이터 수동 확인 필요. |
-| R-007 | Supabase 무료 DB 500MB 한도 | 낮음 | 1~10학교 MVP 규모에서 충분. v2 전환 시 유료 플랜. |
 | R-008 | school_id 필터 누락 버그 → 타 학교 데이터 노출 | 매우 높음 | 모든 서비스 메서드에 school_id 검증 단위 테스트 필수. Supabase RLS 보조 레이어로 설정. |
 
 ### 8.4 2026-04 구현 정렬 사항
@@ -1173,10 +1167,6 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 - 상담 상세 화면은 클라이언트 PDF 리포트 내보내기를 지원합니다.
 
 ---
-
-## Appendix: PRD → Design Spec 요구사항 추적표
-
-## Appendix: PRD → Design Spec 요구사항 추적표
 
 ## Appendix: PRD → Design Spec 요구사항 추적표
 
