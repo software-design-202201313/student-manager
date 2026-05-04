@@ -95,7 +95,7 @@ ADR-001에서 운영(`public`) → 분석(`analytics`) 적재를 **메시지 스
 
 | ID | 리스크 | 대응 |
 |----|--------|------|
-| R-1 | Kafka KRaft docker-compose 설정 막힘 (W3) | 금요일까지 PoC fail 시 **Redpanda fallback** (Kafka API 호환, 코드 변경 0) |
+| R-1 | Kafka KRaft docker-compose 설정 막힘 (W3) | ✅ **closed (2026-05-04)** — `confluentinc/cp-kafka:7.6.1` KRaft 모드로 health check ≤30s 통과, `scripts/kafka_smoke.py` round-trip OK. Redpanda fallback 불필요. |
 | R-2 | testcontainers Kafka 부팅 느려 CI 시간 폭증 | session-scoped fixture, 일부 테스트는 docker-compose 의존으로 분리 |
 | R-3 | Outbox row가 누적되어 테이블 비대화 | 평가용 환경에서는 무시 가능. 운영 환경에선 `sent_at < now() - 7d` 주기 archival (평가 후) |
 | R-4 | Publisher와 운영 라우터 둘 다 같은 outbox row를 처리 (race) | publisher만 `sent_at` 업데이트. 라우터는 INSERT만 수행 → race 없음 |
