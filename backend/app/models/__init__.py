@@ -14,6 +14,7 @@ from app.models.notification import Notification
 from app.models.notification_preference import NotificationPreference
 from app.models.user_invitation import UserInvitation
 from app.models.password_reset_token import PasswordResetToken
+from app.models.outbox import Outbox
 
 __all__ = [
     "School",
@@ -32,4 +33,5 @@ __all__ = [
     "NotificationPreference",
     "UserInvitation",
     "PasswordResetToken",
+    "Outbox",
 ]

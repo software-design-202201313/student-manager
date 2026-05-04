@@ -8,10 +8,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppException
 from app.models.grade import Grade
+from app.models.outbox import Outbox
 from app.models.student import Student
 from app.models.class_ import Class
 from app.models.subject import Subject
 from app.utils.grade_calculator import calculate_grade
+
+
+GRADE_EVENTS_TOPIC = "grade_events"
+
+
+def _grade_outbox_row(grade: Grade, *, op: str) -> Outbox:
+    """Build an outbox row for a grade write — staged in the same session as the grade."""
+    payload = {
+        "grade_id": str(grade.id),
+        "student_id": str(grade.student_id),
+        "subject_id": str(grade.subject_id),
+        "semester_id": str(grade.semester_id),
+        "score": float(grade.score) if grade.score is not None else None,
+        "op": op,
+    }
+    return Outbox(
+        aggregate_type="grade",
+        aggregate_id=grade.id,
+        topic=GRADE_EVENTS_TOPIC,
+        payload=payload,
+    )
 
 
 def _raise_forbidden() -> None:
@@ -94,6 +116,8 @@ async def create_grade(
     )
     db.add(grade)
     try:
+        await db.flush()  # populate grade.id before staging outbox row
+        db.add(_grade_outbox_row(grade, op="INSERT"))
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -112,6 +136,7 @@ async def update_grade(
     grade = await _get_owned_grade(db, grade_id=grade_id, teacher_id=teacher_id)
     grade.score = score
     grade.grade_rank = calculate_grade(float(score))
+    db.add(_grade_outbox_row(grade, op="UPDATE"))
     await db.commit()
     await db.refresh(grade)
     return grade
