@@ -10,6 +10,7 @@ docker compose up --build
 
 - 프론트엔드: `http://localhost:5173`
 - 백엔드 / Swagger: `http://localhost:18000` / `http://localhost:18000/docs`
+- Kafka (KRaft 단일 노드): 컨테이너 내부 `kafka:9092`, 호스트 `localhost:29092`
 - 기본 교사 계정: `teacher@example.com` / `password123`
 
 로컬 QA 실행:

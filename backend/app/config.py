@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     cookie_samesite: str = "strict"  # one of: "lax", "strict", "none"
     cookie_path: str = "/"
+    # Kafka — outbox-publisher / analytics-worker
+    kafka_bootstrap_servers: str = "localhost:9092"
 
     model_config = {"env_file": ".env"}
 

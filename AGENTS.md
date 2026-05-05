@@ -1,7 +1,3 @@
-oh-my-codex — Student Manager Quick Directive
-
-Source: docs/superpowers/plans/2026-03-20-student-manager-full-implementation.md, docs/prd.md (v2.0)
-
 - MVP non‑negotiables: grade input/edit (0–100), instant total/avg, 9‑grade auto calc, radar chart; deliver S1–S2 scope first.
 - Error contract: use AppException everywhere; JSON { detail, code } only (no plain HTTPException for business errors).
 - Auth & isolation: JWT access 1h, refresh 7d (HttpOnly cookie); enforce role + school_id row scope on every query.

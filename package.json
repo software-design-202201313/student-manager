@@ -10,5 +10,8 @@
     "qa:backend": "cd backend && .venv312/bin/ruff check app tests && .venv312/bin/pytest -q",
     "qa:frontend": "npm --prefix frontend run typecheck",
     "qa": "npm run qa:backend && npm run qa:frontend"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
   }
 }

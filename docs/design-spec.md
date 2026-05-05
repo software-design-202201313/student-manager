@@ -1,10 +1,13 @@
 # 학생 성적 및 상담 관리 시스템 — Design Spec
 
-**버전**: 2.0
-**작성일**: 2026-03-19
+**버전**: 2.1
+**작성일**: 2026-05-03
 **상태**: 확정
-**기반 문서**: PRD v2.0
-**변경 이력**: v1.0 → v2.0 (Critic 리뷰 반영 — Critical 3건, Major 6건, Minor 다수 수정)
+**기반 문서**: PRD v2.1, ADR-001 (재작성), ADR-002 (CDC — Outbox + Kafka)
+**프로젝트 성격**: 졸업 평가용 로컬 프로토타입 (사용자 0명)
+**변경 이력**:
+- v1.0 → v2.0: Critic 리뷰 반영
+- v2.0 → v2.1: §1 docker-compose 로컬 인프라, §9 Outbox+Kafka 기반 Analytics Layer, §10 단일 엔드포인트 챗봇
 
 ---
 
@@ -18,45 +21,90 @@
 6. [State & Data Consistency Rules](#6-state--data-consistency-rules)
 7. [Edge Cases](#7-edge-cases)
 8. [Design Risks & Ambiguities](#8-design-risks--ambiguities)
+9. [Analytics Layer (v2.1)](#9-analytics-layer-v21)
+10. [AI 어시스턴트 (v2.1)](#10-ai-어시스턴트-v21-데모용)
 
 ---
 
 ## 1. System Overview
 
-### 아키텍처 구성
+### 아키텍처 구성 (v2.1)
 
 ```
-[Browser / Mobile Web]
-        │
-        ▼
-[Vercel — React 18 + TypeScript]
-        │  HTTPS / REST
-        ▼
-[Render — FastAPI (Python 3.11)]
-        │  SQLAlchemy 2.0
-        ▼
-[Supabase — PostgreSQL]
+                  [Browser]
+                      │  HTTPS / REST
+                      ▼
+   ┌─────────────────────────────────────────────────────┐
+   │  docker-compose (로컬)                              │
+   │                                                     │
+   │  ┌─────────────────┐                                │
+   │  │ frontend (Vite) │                                │
+   │  │ React 18 + TS   │                                │
+   │  └────────┬────────┘                                │
+   │           │ /api/v1                                 │
+   │           ▼                                         │
+   │  ┌─────────────────────────────────────┐            │
+   │  │ fastapi-api                         │            │
+   │  │  - 운영 라우터 (grades, ...)        │            │
+   │  │  - /api/v1/analytics/* (read agg)   │            │
+   │  │  - /api/v1/chat (LLM 호출)          │            │
+   │  └──┬──────────────┬────────────────┬──┘            │
+   │     │ SQL          │ outbox INSERT  │ HTTPS         │
+   │     ▼              ▼                ▼               │
+   │  ┌──────────────────────┐    [LLM Provider (외부)]  │
+   │  │ Postgres             │                           │
+   │  │  public.*  (OLTP)    │                           │
+   │  │  public.outbox       │                           │
+   │  │  analytics.* (OLAP)  │                           │
+   │  └──┬──────────────▲────┘                           │
+   │     │ poll unsent  │ UPSERT agg                     │
+   │     ▼              │                                │
+   │  ┌─────────────┐   │                                │
+   │  │ outbox-     │   │                                │
+   │  │ publisher   │   │                                │
+   │  │ (aiokafka)  │   │                                │
+   │  └──────┬──────┘   │                                │
+   │         │ produce  │                                │
+   │         ▼          │                                │
+   │  ┌──────────────┐  │                                │
+   │  │ Kafka KRaft  │  │                                │
+   │  │ (단일 노드)  │  │ Fallback: Redpanda             │
+   │  └──────┬───────┘  │                                │
+   │         │ consume  │                                │
+   │         ▼          │                                │
+   │  ┌──────────────────┐                               │
+   │  │ analytics-worker │                               │
+   │  │ (aiokafka cons.) │  scale=N (consumer group)     │
+   │  └──────────────────┘                               │
+   └─────────────────────────────────────────────────────┘
 ```
 
 | 레이어 | 기술 | 역할 |
 |--------|------|------|
-| Frontend | React 18, TypeScript, Tailwind CSS, Zustand, TanStack Query, Recharts | UI 렌더링, 상태 관리, 차트 |
-| Backend | FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic | REST API, 비즈니스 로직, ORM |
-| Database | PostgreSQL (Supabase) | 데이터 저장 |
+| Frontend | React 18, TS, Tailwind, Zustand, TanStack Query, Recharts | UI, 상태, 차트, 챗 위젯 |
+| Backend API | FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic | REST, 비즈니스 로직, RBAC, outbox INSERT, 챗봇 엔드포인트 |
+| Outbox Publisher | Python 3.11, aiokafka | `public.outbox` polling → Kafka topic produce |
+| Analytics Worker | Python 3.11, aiokafka | Kafka consumer (consumer group) → `analytics.*` UPSERT |
+| Message Stream | Apache Kafka KRaft (단일 노드) | 운영 → 분석 이벤트 전달. Fallback: Redpanda |
+| Database | PostgreSQL — `public` (OLTP) + `public.outbox` + `analytics` (OLAP) | 단일 인스턴스 |
 | 인증 | JWT (python-jose + passlib bcrypt) | Access 1h / Refresh 7d |
-| 배포 | Vercel + Render + Supabase | 무료 티어 기반 |
+| 배포 | docker-compose (로컬 평가) | 모든 서비스 단일 compose 파일 |
 
 ### 핵심 설계 결정사항
 
-1. **멀티테넌트 격리**: 단일 DB + `school_id` Row-Level Filtering. FastAPI 레이어에서 1차 스코핑 필수. Supabase RLS는 선택적 보조 레이어로만 사용.
+1. **멀티테넌트 격리**: 단일 DB + `school_id` Row-Level Filtering. FastAPI 레이어에서 1차 스코핑 필수. Postgres RLS는 선택적 보조 레이어 (평가 후 검토).
 2. **인증**: JWT Bearer 토큰. `access_token`은 메모리(Zustand store) 저장. `refresh_token`은 HttpOnly Cookie. localStorage 금지.
-3. **실시간**: MVP에서는 **30초 폴링** 방식으로 인앱 알림 구현 (Supabase Realtime은 v2 전환).
+3. **실시간**: **30초 폴링** 방식으로 인앱 알림 구현 (SSE/WebSocket push는 평가 후).
 4. **성적 등급**: 원점수 기준 9등급 참고값 제공 (석차 기반 아님). 추후 전환 가능하도록 계산 로직 서비스 레이어에서 분리.
 5. **파일 생성**: 클라이언트 사이드 전용 (SheetJS: Excel, jsPDF: PDF). 서버는 JSON 데이터만 제공, 파일 변환은 브라우저에서 수행.
 6. **초기 설정 전략**: School 및 교사 계정은 Alembic seed script로 생성. 교사가 앱 내에서 학급/과목/학기를 직접 설정.
-7. **교사 스코핑 (MVP 제약)**: 담임 교사 1명 = 담당 Class 1개 구조. 교과 교사 다중 반 담당은 v2에서 ClassTeacher M:M 테이블로 확장 예정.
-8. **CORS**: Render 백엔드는 Vercel 프론트엔드 origin만 허용 (`ALLOWED_ORIGINS` 환경변수).
-9. **Rate Limiting**: 로그인 엔드포인트에 한해 IP 기반 5회/분 제한 (slowapi 라이브러리 사용).
+7. **교사 스코핑 (MVP 제약)**: 담임 교사 1명 = 담당 Class 1개 구조. 교과 교사 다중 반 담당은 평가 후 ClassTeacher M:M 테이블로 확장 예정.
+8. **CORS**: 로컬 docker-compose 환경에서 frontend origin만 허용 (`ALLOWED_ORIGINS` 환경변수).
+9. **Rate Limiting**: 로그인 엔드포인트와 `/api/v1/chat`에 IP/사용자 기반 제한 (slowapi 라이브러리 사용).
+10. **OLAP 분리 (v2.1)**: 운영 트랜잭션은 `public` 스키마, 분석 집계는 `analytics` 스키마. 두 스키마는 동일 PG 인스턴스.
+11. **CDC 파이프라인 (v2.1)**: **Outbox 패턴 + Kafka KRaft**. 운영 라우터가 도메인 변경과 같은 트랜잭션으로 `public.outbox`에 INSERT → `outbox-publisher`(aiokafka)가 미발행 row를 polling해 Kafka 토픽으로 produce → `analytics-worker`(aiokafka consumer group)가 `analytics.*` UPSERT. 자세한 근거는 ADR-002.
+12. **컨테이너 (v2.1)**: 모든 서비스(`frontend`, `fastapi-api`, `outbox-publisher`, `analytics-worker`, `kafka`, `postgres`)는 단일 `docker-compose.yml`로 묶는다. 확장성은 `docker-compose up --scale analytics-worker=3`으로 시연.
+13. **Chatbot (v2.1)**: 별도 서비스 분리하지 않고 FastAPI 백엔드의 단일 라우터(`POST /api/v1/chat`)로 구현. 답변 범위를 학급 단위 통계로 제한(k≥5 실질). 컨텍스트 학생명·학번은 `chatbot/sanitizer.py`에서 단순 치환(`학생A`, `seq_001`).
 
 ---
 
@@ -262,8 +310,6 @@ counseling_updated BOOLEAN    NOT NULL  DEFAULT true
 ---
 
 ### 3.1 인증 (Auth)
-
-> **현재 구현 기준 메모**: teacher CRUD는 `/grades`, `/feedbacks`, `/counselings`, `/notifications`에 유지되고, student/parent read-only는 `/my/*`로 분리되어 있습니다. 목록 응답은 배열 형식이 기본이며, bulk grade 입력은 `/import/*`로 처리합니다.
 
 #### POST /auth/login
 ```
@@ -1152,13 +1198,9 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 | ID | 위험 | 영향도 | 대응 |
 |----|------|--------|------|
 | R-001 | 교과 교사 미지원 → 담임이 모든 과목 성적 입력 | 높음 | **고객 합의 필수**. 합의 없으면 MVP 운영 불가. |
-| R-002 | Render cold start → 첫 API 응답 30초 지연 | 높음 | Keep-alive cron ping. 데모 전 사전 워밍. |
-| R-003 | 성적 등급 계산 기준 (원점수 vs 석차백분율) | 높음 | 서비스 레이어 calculate_grade() 함수 분리. 고객과 Sprint 0 종료 전 합의. |
-| R-004 | CSV 가져오기 컬럼 매핑 미정 | 중간 | Sprint 2 전 표준 템플릿 확정 (docs/csv-templates/ 작성). |
 | R-005 | 상담 공유 시 알림 폭탄 (교사 수 × 알림) | 중간 | MVP 규모(학교당 교사 10~30명)에서 허용. v2에서 수신자 선택 기능 추가. |
 | R-006 | 학생 반 이동 시 이전 담임 데이터 접근 불가 | 낮음 | MVP에서는 반 이동 이력 없음. 이동 전 담임이 필요한 데이터 수동 확인 필요. |
-| R-007 | Supabase 무료 DB 500MB 한도 | 낮음 | 1~10학교 MVP 규모에서 충분. v2 전환 시 유료 플랜. |
-| R-008 | school_id 필터 누락 버그 → 타 학교 데이터 노출 | 매우 높음 | 모든 서비스 메서드에 school_id 검증 단위 테스트 필수. Supabase RLS 보조 레이어로 설정. |
+| R-008 | school_id 필터 누락 버그 → 타 학교 데이터 노출 | 매우 높음 | 모든 서비스 메서드에 school_id 검증 단위 테스트 필수. Postgres RLS 보조 레이어 도입 검토 (평가 후). |
 
 ### 8.4 2026-04 구현 정렬 사항
 
@@ -1174,9 +1216,296 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 
 ---
 
-## Appendix: PRD → Design Spec 요구사항 추적표
+## 9. Analytics Layer (v2.1)
 
-## Appendix: PRD → Design Spec 요구사항 추적표
+> **CDC 패턴**: Outbox + Kafka. 자세한 근거·대안 비교는 ADR-002 참조.
+
+### 9.1 스키마
+
+```sql
+-- 분석 스키마 분리
+CREATE SCHEMA IF NOT EXISTS analytics;
+
+-- Outbox 테이블 (운영 스키마, 트랜잭션 안에서 INSERT)
+CREATE TABLE public.outbox (
+  event_id        BIGSERIAL PRIMARY KEY,
+  aggregate_type  VARCHAR(50) NOT NULL,   -- 'grade' | 'attendance' | 'feedback' | 'counseling'
+  aggregate_id    UUID NOT NULL,
+  topic           VARCHAR(50) NOT NULL,   -- 'grade_events' 등
+  payload         JSONB NOT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT now(),
+  sent_at         TIMESTAMP NULL          -- publisher가 발행 후 update
+);
+CREATE INDEX outbox_unsent_idx ON public.outbox (event_id) WHERE sent_at IS NULL;
+
+-- 이벤트 로그 (append-only)
+CREATE TABLE analytics.fact_grade_event (
+  event_id      BIGSERIAL PRIMARY KEY,
+  grade_id      UUID NOT NULL,
+  student_id    UUID NOT NULL,
+  subject_id    UUID NOT NULL,
+  semester_id   UUID NOT NULL,
+  score         NUMERIC(5,2),
+  grade_rank    SMALLINT,
+  op            VARCHAR(10) NOT NULL,  -- INSERT | UPDATE
+  occurred_at   TIMESTAMP NOT NULL DEFAULT now()
+);
+CREATE INDEX ON analytics.fact_grade_event (student_id, occurred_at DESC);
+
+CREATE TABLE analytics.fact_attendance_event (
+  event_id      BIGSERIAL PRIMARY KEY,
+  attendance_id UUID NOT NULL,
+  student_id    UUID NOT NULL,
+  date          DATE NOT NULL,
+  status        VARCHAR(15) NOT NULL,
+  op            VARCHAR(10) NOT NULL,
+  occurred_at   TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- 집계 캐시 (UPSERT, consumer가 갱신)
+CREATE TABLE analytics.agg_student_subject (
+  student_id      UUID NOT NULL,
+  subject_id      UUID NOT NULL,
+  semester_id     UUID NOT NULL,
+  avg_score       NUMERIC(5,2),
+  max_score       NUMERIC(5,2),
+  min_score       NUMERIC(5,2),
+  latest_rank     SMALLINT,
+  sample_count    INTEGER NOT NULL,
+  refreshed_at    TIMESTAMP NOT NULL DEFAULT now(),
+  PRIMARY KEY (student_id, subject_id, semester_id)
+);
+
+CREATE TABLE analytics.agg_student_overall (
+  student_id     UUID NOT NULL,
+  semester_id    UUID NOT NULL,
+  total_score    NUMERIC(7,2),
+  avg_score      NUMERIC(5,2),
+  subject_count  INTEGER NOT NULL,
+  attendance_present_rate NUMERIC(4,3),
+  feedback_count INTEGER NOT NULL DEFAULT 0,
+  refreshed_at   TIMESTAMP NOT NULL DEFAULT now(),
+  PRIMARY KEY (student_id, semester_id)
+);
+```
+
+### 9.2 운영 라우터의 Outbox INSERT (트랜잭션 일관성)
+
+운영 도메인 변경(예: grade UPSERT) 직후 **같은 트랜잭션** 안에서 `public.outbox`에 row를 INSERT한다. 이로써 도메인 변경이 commit되면 outbox row도 반드시 함께 영속화되며, broker가 다운돼도 이벤트가 유실되지 않는다.
+
+```python
+# app/services/grades.py — pseudo
+async def upsert_grade(db: AsyncSession, *, student_id: UUID, ...) -> Grade:
+    async with db.begin():
+        grade = await _upsert_grade_row(db, student_id=student_id, ...)
+        await db.execute(
+            insert(Outbox).values(
+                aggregate_type="grade",
+                aggregate_id=grade.id,
+                topic="grade_events",
+                payload={
+                    "grade_id": str(grade.id),
+                    "student_id": str(student_id),
+                    "subject_id": str(grade.subject_id),
+                    "semester_id": str(grade.semester_id),
+                    "op": "UPSERT",
+                },
+            )
+        )
+    return grade
+```
+
+`attendance`, `feedback`, `counseling` 라우터에서 동일한 패턴 적용.
+
+### 9.3 Outbox Publisher (Kafka producer)
+
+`public.outbox` 테이블의 미발행 row(`sent_at IS NULL`)를 polling하여 Kafka 토픽으로 발행한다.
+
+```python
+# app/workers/outbox_publisher.py — pseudo
+async def main() -> None:
+    producer = AIOKafkaProducer(
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP,
+        enable_idempotence=True,
+        acks="all",
+    )
+    await producer.start()
+    try:
+        while True:
+            rows = await fetch_unsent(limit=100)  # ORDER BY event_id
+            if not rows:
+                await asyncio.sleep(0.5)
+                continue
+            for row in rows:
+                await producer.send_and_wait(
+                    row.topic,
+                    value=json.dumps(row.payload).encode(),
+                    key=str(row.aggregate_id).encode(),
+                )
+                await mark_sent(row.event_id)
+    finally:
+        await producer.stop()
+```
+
+**부팅 시 catch-up**: 별도 로직 불필요. `WHERE sent_at IS NULL` 쿼리가 자동 catch-up 역할 수행.
+
+### 9.4 Analytics Worker (Kafka consumer)
+
+```python
+# app/workers/analytics.py — pseudo
+async def main() -> None:
+    consumer = AIOKafkaConsumer(
+        "grade_events", "attendance_events", "feedback_events", "counseling_events",
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP,
+        group_id="analytics-worker",
+        enable_auto_commit=False,
+        auto_offset_reset="earliest",
+    )
+    await consumer.start()
+    try:
+        async for msg in consumer:
+            event = json.loads(msg.value.decode())
+            match msg.topic:
+                case "grade_events":      await refresh_grade_aggregates(event)
+                case "attendance_events": await refresh_attendance_aggregates(event)
+                case "feedback_events":   await refresh_feedback_aggregates(event)
+                case "counseling_events": await refresh_counseling_aggregates(event)
+            await consumer.commit()
+    finally:
+        await consumer.stop()
+```
+
+- **idempotency**: `analytics.fact_*`는 append-only지만 `(grade_id, op, occurred_at)` 등 dedupe key로 중복 방지. `analytics.agg_*`는 UPSERT.
+- **수평 확장**: `docker-compose up --scale analytics-worker=3` → consumer group이 자동으로 파티션 분배.
+- **error handling**: 실패 이벤트는 `analytics.dead_letter`에 기록 + 로그 알림.
+
+### 9.5 분석 API
+
+| Method | Path | 설명 | Auth |
+|--------|------|------|------|
+| GET | `/api/v1/analytics/teachers/me/dashboard` | 교사 메인 위젯 (담당 학급 요약) | teacher |
+| GET | `/api/v1/analytics/students/{id}/overview` | 학생 학습 요약 (학기 추이) | teacher (담당) |
+| GET | `/api/v1/analytics/classes/{id}/distribution` | 학급 점수 분포 | teacher (담임) |
+| GET | `/api/v1/analytics/subjects/{id}/trend` | 과목 평균 추이 | teacher (담임) |
+
+응답은 `analytics.agg_*` 테이블에서 직접 조회. 무거운 집계 쿼리 금지.
+
+### 9.6 일관성 보장
+
+| 항목 | 정책 |
+|------|------|
+| 실시간성 | 운영 변경 → 분석 반영 ≤ 1분 (Kafka 발행 + consumer 처리는 통상 sub-second) |
+| 정합성 검증 | 통합 테스트(testcontainers) + `scripts/check_consistency.py` (운영 row vs fact row 비교) |
+| Publisher 다운 | outbox row commit됨 → 부팅 시 `WHERE sent_at IS NULL` 자동 catch-up |
+| Consumer 다운 | Kafka offset 보관 → 재기동 시 마지막 commit offset부터 재구독 |
+| Broker 다운 | publisher가 producer.send에서 retry. 운영 트랜잭션은 정상 commit (outbox row 누적) |
+| 백필 | Alembic data migration 스크립트 (`scripts/backfill_analytics.py`): 운영 테이블 전체 스캔 → outbox INSERT (publisher가 catch-up) |
+
+---
+
+## 10. AI 어시스턴트 (v2.1, 데모용)
+
+> **명명 정정**: 본 기능은 벡터 인덱싱·의미 검색이 없으므로 정식 RAG가 아니다. *"분석 데이터 기반 LLM 자연어 응답"*으로 통일한다.
+
+### 10.1 구성
+
+```
+[Frontend Chat Widget]
+        │  POST /api/v1/chat
+        ▼
+[fastapi-api : routers/chat.py]
+        │ 1. RBAC 검증 (teacher 한정)
+        │ 2. 의도 분류 (간단한 키워드 라우팅)
+        │ 3. analytics.agg_* 쿼리 → context 구성 (학급 단위 통계만, k≥5)
+        │ 4. PII 마스킹 (chatbot/sanitizer.py)
+        │ 5. LLM SDK 호출 (provider는 환경변수로 단일 선택)
+        │ 6. 응답 후처리 (token → 실제 학생 매핑)
+        ▼
+[LLM Provider (외부, OpenAI 또는 Anthropic)]
+```
+
+### 10.2 LLM 호출 (단일 provider 직접 호출)
+
+별도 `LLMClient` 추상화 인터페이스는 도입하지 않는다. 환경변수 `LLM_PROVIDER`로 하나의 SDK를 선택해 직접 호출.
+
+```python
+# app/chatbot/llm.py — pseudo
+async def complete(prompt: str, context: list[dict]) -> str:
+    provider = settings.LLM_PROVIDER  # "openai" | "anthropic"
+    if provider == "openai":
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        resp = await client.chat.completions.create(
+            model=settings.LLM_MODEL,
+            messages=[{"role": "system", "content": system_prompt(context)},
+                      {"role": "user", "content": prompt}],
+            max_tokens=1024,
+        )
+        return resp.choices[0].message.content
+    elif provider == "anthropic":
+        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        resp = await client.messages.create(
+            model=settings.LLM_MODEL,
+            max_tokens=1024,
+            system=system_prompt(context),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return resp.content[0].text
+    raise ValueError(f"unknown provider: {provider}")
+```
+
+### 10.3 PII 마스킹 규약
+
+```python
+# app/chatbot/sanitizer.py — pseudo
+def mask_context(rows: list[dict]) -> tuple[list[dict], dict[str, UUID]]:
+    """학급 단위 통계만 받음. 단일 학생 식별 불가능한 응답이 보장되도록 사전에 k≥5 필터."""
+    token_map: dict[str, UUID] = {}
+    masked_rows = []
+    for i, row in enumerate(rows, start=1):
+        token = f"학생{chr(64 + i)}"  # 학생A, 학생B, ...
+        if "student_id" in row:
+            token_map[token] = row["student_id"]
+            row = {**row, "student_name": token, "student_number": f"seq_{i:03d}"}
+            row.pop("student_id", None)
+            row.pop("email", None)
+            row.pop("phone", None)
+        masked_rows.append(row)
+    return masked_rows, token_map
+```
+
+| 원본 | 마스킹 |
+|------|--------|
+| `김철수` (학생명) | `학생A` |
+| `student_number=15` | `seq_015` |
+| 학부모 이메일/전화 | (컨텍스트에서 제거) |
+| `student_id` (UUID) | (컨텍스트에서 제거, 서버 메모리 매핑만 유지) |
+| 교사명 | 유지 (질의자 본인) |
+
+응답 후처리에서 `학생A` 등의 token을 매핑 테이블로 실제 학생 객체로 치환하여 클라이언트에 전달.
+
+### 10.4 API
+
+```
+POST /api/v1/chat
+Request:  { "thread_id": "uuid|null", "message": "string" }
+Response: {
+  "thread_id": "uuid",
+  "reply": "string",
+  "referenced_students": [{ "id": "uuid", "name": "string" }]
+}
+
+Authorization: teacher only
+Rate Limit: 10회/분 per user (slowapi)
+```
+
+### 10.5 비용·안전 제어
+
+- 컨텍스트 크기 상한: 8K tokens (분석 요약만 포함, 학급 단위)
+- 응답 토큰 상한: 1024
+- 답변 범위 제한: 학급 단위 통계 (k≥5). 단일 학생 식별 가능한 질의는 거부 메시지 반환.
+- 프롬프트 인젝션 방어: 컨텍스트 데이터를 system message에, 사용자 입력을 user message로 분리. 사용자 입력은 길이 1000자로 제한.
+
+---
 
 ## Appendix: PRD → Design Spec 요구사항 추적표
 
@@ -1200,7 +1529,14 @@ GET /grades/{student_id}/summary?semester_ids=uuid1,uuid2
 | REQ-061~062 | §3.9 (클라이언트 jsPDF) | ✅ |
 | REQ-005 | 비밀번호 재설정 | ✅ |
 | US-007 AC (알림 ON/OFF) | §3.8 NotificationPreference | ✅ |
+| REQ-070 (분석 스키마 분리) | §9.1 analytics.* | 🚧 v2.1 |
+| REQ-071 (Outbox + Kafka 이벤트 적재) | §9.2~9.4 outbox INSERT + publisher + consumer | 🚧 v2.1 |
+| REQ-072 (집계 테이블) | §9.1 agg_student_subject/overall | 🚧 v2.1 |
+| REQ-073 (교사 대시보드) | §9.5 GET /analytics/* | 🚧 v2.1 |
+| REQ-074 (≤ 1분 반영) | §9.6 일관성 보장 | 🚧 v2.1 |
+| REQ-075 (scale=N 시연) | §1 docker-compose `--scale analytics-worker=3` | 🚧 v2.1 |
+| REQ-080~083 (AI 어시스턴트 단일 엔드포인트 + PII 마스킹) | §10 AI 어시스턴트 | 🚧 v2.1 |
 
 ---
 
-*Design Spec v2.0 — 확정*
+*Design Spec v2.1 — 확정*
