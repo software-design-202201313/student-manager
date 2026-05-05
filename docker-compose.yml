@@ -85,6 +85,24 @@ services:
       - ./backend/seed.py:/app/seed.py
       - ./backend/docker-entrypoint.sh:/app/docker-entrypoint.sh
 
+  outbox-publisher:
+    build:
+      context: ./backend
+    container_name: sm-outbox-publisher
+    environment:
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql+asyncpg://sm:smpass@db:5432/student_manager
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    command: ["python", "-m", "app.workers.outbox_publisher"]
+    restart: unless-stopped
+    volumes:
+      - ./backend/app:/app/app
+
   frontend:
     image: node:20-alpine
     container_name: sm-frontend
